@@ -2,7 +2,6 @@ import express from 'express';
 import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import cors from 'cors';
 import {
     mcpAuthMetadataRouter,
@@ -19,23 +18,50 @@ import { listChatsTool, handleListChats } from './tools/list_chats';
 import { uploadMediaTool, handleUploadMedia } from './tools/upload_media';
 import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
 
-// ─── OAuth Metadata ──────────────────────────────────────────────────────────
+// ─── MCP Server Setup ────────────────────────────────────────────────────────
 
 const mcpServerUrl = new URL(config.PUBLIC_URL || `http://${config.HOST}:${config.PORT}`);
 
-const oauthMetadata: OAuthMetadata = {
-    issuer: config.POSTPULSE_AUTH_ISSUER,
-    authorization_endpoint: config.POSTPULSE_AUTH_AUTHORIZE_URL,
-    token_endpoint: config.POSTPULSE_AUTH_TOKEN_URL,
-    response_types_supported: ['code'],
-};
+const server = new McpServer({
+    name: 'mcp-server-postpulse',
+    version: '1.0.0',
+});
+
+// Register tools
+server.registerTool(listAccountsTool.name, {
+    description: listAccountsTool.description,
+    inputSchema: listAccountsTool.inputSchema
+}, handleListAccounts);
+
+server.registerTool(listChatsTool.name, {
+    description: listChatsTool.description,
+    inputSchema: listChatsTool.inputSchema
+}, handleListChats);
+
+server.registerTool(uploadMediaTool.name, {
+    description: uploadMediaTool.description,
+    inputSchema: uploadMediaTool.inputSchema
+}, handleUploadMedia);
+
+server.registerTool(schedulePostTool.name, {
+    description: schedulePostTool.description,
+    inputSchema: schedulePostTool.inputSchema
+}, handleSchedulePost);
+
+// Single stateful transport instance
+const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+});
+
+// Connect server to transport
+server.connect(transport).catch(error => {
+    console.error('Failed to connect MCP server to transport:', error);
+});
 
 // ─── Express App ─────────────────────────────────────────────────────────────
 
 const app = express();
-
 app.use(express.json());
-
 app.use(
     cors({
         origin: '*',
@@ -44,6 +70,19 @@ app.use(
 );
 
 // ─── OAuth Discovery Endpoints ───────────────────────────────────────────────
+
+const issuerUrl = config.POSTPULSE_AUTH_ISSUER.endsWith('/')
+    ? config.POSTPULSE_AUTH_ISSUER
+    : `${config.POSTPULSE_AUTH_ISSUER}/`;
+
+const oauthMetadata: OAuthMetadata = {
+    issuer: config.POSTPULSE_AUTH_ISSUER,
+    // Note: MCP client will do their own discovery on the issuer.
+    // However, the SDK requires these fields for its internal metadata server.
+    authorization_endpoint: `${issuerUrl}authorize`,
+    token_endpoint: `${issuerUrl}oauth/token`,
+    response_types_supported: ['code'],
+};
 
 app.use(
     mcpAuthMetadataRouter({
@@ -67,94 +106,23 @@ const authMiddleware = requireBearerAuth({
     resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpServerUrl),
 });
 
-// ─── MCP Server Factory ─────────────────────────────────────────────────────
-
-const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
-
-function createMcpServer() {
-    const server = new McpServer({
-        name: 'mcp-server-postpulse',
-        version: '1.0.0',
-    });
-
-    // Modern registerTool signature using config object
-    server.registerTool(listAccountsTool.name, {
-        description: listAccountsTool.description,
-        inputSchema: listAccountsTool.inputSchema as any
-    }, handleListAccounts as any);
-
-    server.registerTool(listChatsTool.name, {
-        description: listChatsTool.description,
-        inputSchema: listChatsTool.inputSchema as any
-    }, handleListChats as any);
-
-    server.registerTool(uploadMediaTool.name, {
-        description: uploadMediaTool.description,
-        inputSchema: uploadMediaTool.inputSchema as any
-    }, handleUploadMedia as any);
-
-    server.registerTool(schedulePostTool.name, {
-        description: schedulePostTool.description,
-        inputSchema: schedulePostTool.inputSchema as any
-    }, handleSchedulePost as any);
-
-    return server;
-}
-
-// ─── HTTP Handlers ───────────────────────────────────────────────────────────
-
-const mcpPostHandler = async (req: express.Request, res: express.Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    let transport: StreamableHTTPServerTransport;
-
-    if (sessionId && transports[sessionId]) {
-        transport = transports[sessionId];
-    } else if (!sessionId && isInitializeRequest(req.body)) {
-        transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: () => randomUUID(),
-            onsessioninitialized: (sid) => {
-                transports[sid] = transport;
-            },
-        });
-
-        transport.onclose = () => {
-            if (transport.sessionId) {
-                delete transports[transport.sessionId];
-            }
-        };
-
-        const server = createMcpServer();
-        await server.connect(transport);
-    } else {
-        res.status(400).json({
-            jsonrpc: '2.0',
-            error: { code: -32000, message: 'Bad Request: No valid session ID provided' },
-            id: null,
-        });
-        return;
-    }
-
-    await transport.handleRequest(req, res, req.body);
-};
-
-const handleSessionRequest = async (req: express.Request, res: express.Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    if (!sessionId || !transports[sessionId]) {
-        res.status(400).send('Invalid or missing session ID');
-        return;
-    }
-    const transport = transports[sessionId];
-    await transport.handleRequest(req, res);
-};
-
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
-app.post('/', authMiddleware, mcpPostHandler);
-app.get('/', authMiddleware, handleSessionRequest);
-app.delete('/', authMiddleware, handleSessionRequest);
+app.post('/', authMiddleware, async (req, res) => {
+    await transport.handleRequest(req, res, req.body);
+});
 
-// ─── Start ───────────────────────────────────────────────────────────────────
+app.post('/sse', async (req, res) => {
+    await transport.handleRequest(req, res, req.body);
+});
+
+app.get('/sse', async (req, res) => {
+    await transport.handleRequest(req, res, req.body);
+});
 
 app.listen(config.PORT, config.HOST, () => {
-    console.log(`🚀 PostPulse MCP Server: ${mcpServerUrl.origin}`);
+    console.log(`🚀 PostPulse MCP Server: http://${config.HOST}:${config.PORT}`);
+    if (config.PUBLIC_URL) {
+        console.log(`🌍 Public URL: ${config.PUBLIC_URL}`);
+    }
 });

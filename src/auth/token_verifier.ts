@@ -5,7 +5,7 @@ const JWKS = createRemoteJWKSet(new URL(config.POSTPULSE_AUTH_JWKS_URI));
 
 /**
  * Token verifier compatible with MCP SDK's requireBearerAuth middleware.
- * Verifies Auth0 JWTs using JWKS (no introspection endpoint needed).
+ * Verifies Auth0 JWTs using JWKS.
  */
 export const tokenVerifier = {
     verifyAccessToken: async (token: string) => {

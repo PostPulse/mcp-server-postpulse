@@ -1,12 +1,10 @@
+import { z } from 'zod';
 import { createApiClient } from '../api/client';
 
 export const listAccountsTool = {
     name: 'list_accounts',
     description: 'List all connected social media accounts (Instagram, Facebook, Telegram, etc.) with their IDs and platforms.',
-    inputSchema: {
-        type: 'object' as const,
-        properties: {},
-    },
+    inputSchema: z.object({}),
 };
 
 export async function handleListAccounts(_args: any, extra: any) {
