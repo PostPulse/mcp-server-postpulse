@@ -107,24 +107,49 @@ const authMiddleware = requireBearerAuth({
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
-// Main MCP endpoint
-app.post('/', authMiddleware, async (req, res) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+// ─── MCP Request Handler ─────────────────────────────────────────────────────
 
+/**
+ * Unified handler for all MCP requests (POST and GET).
+ * - POST with initialization request -> creates a new session.
+ * - POST with sessionId header -> standard MCP tool call/request.
+ * - GET with sessionId (header or query) -> establishes SSE stream.
+ */
+const handleMcp = async (req: express.Request, res: express.Response) => {
+    // 1. Discover Session ID
+    // Check headers first (standard), then query params (some SSE clients)
+    let sessionId = (req.headers['mcp-session-id'] as string | undefined)
+        || (req.query['session_id'] as string | undefined)
+        || (req.query['mcp-session-id'] as string | undefined);
+
+    // If session ID was only in query, inject it into headers for the SDK transport
+    if (sessionId && !req.headers['mcp-session-id']) {
+        req.headers['mcp-session-id'] = sessionId;
+    }
+
+    // 2. Handle Existing Session
     if (sessionId) {
-        // Subsequent request for an existing session
         const transport = transports.get(sessionId);
         if (!transport) {
-            res.status(404).json({
-                jsonrpc: '2.0',
-                error: { code: -32001, message: 'Session not found' },
-                id: null,
-            });
+            if (req.method === 'GET') {
+                res.status(404).send('Session not found');
+            } else {
+                res.status(404).json({
+                    jsonrpc: '2.0',
+                    error: { code: -32001, message: 'Session not found' },
+                    id: null,
+                });
+            }
             return;
         }
         await transport.handleRequest(req, res, req.body);
-    } else if (isInitializeRequest(req.body)) {
-        // Fresh initialization request
+        return;
+    }
+
+    // 3. Handle Initialization (POST only)
+    if (req.method === 'POST' && isInitializeRequest(req.body)) {
+        // Auth is required for initialization
+        // Note: authMiddleware is already applied to the outer route, but we check here for clarity
         const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
             onsessioninitialized: (sid) => {
@@ -140,35 +165,35 @@ app.post('/', authMiddleware, async (req, res) => {
         const server = createMcpServer();
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
+        return;
+    }
+
+    // 4. Fallback: Bad Request
+    if (req.method === 'GET') {
+        res.status(400).send('Mcp-Session-Id header or session_id query parameter is required for SSE');
     } else {
-        // No session ID and not an initialize request
         res.status(400).json({
             jsonrpc: '2.0',
-            error: { code: -32000, message: 'Bad Request: Mcp-Session-Id header is required or initiate initialize flow' },
+            error: { code: -32000, message: 'Bad Request: Initialize flow must start with a POST request' },
             id: null,
         });
     }
-});
-
-// GET /sse and POST /sse for streaming
-const handleSse = async (req: express.Request, res: express.Response) => {
-    const sessionId = (req.headers['mcp-session-id'] as string) || (req.query['session_id'] as string);
-    if (!sessionId) {
-        res.status(400).send('Mcp-Session-Id header or session_id query parameter is required');
-        return;
-    }
-
-    const transport = transports.get(sessionId);
-    if (!transport) {
-        res.status(404).send('Session not found');
-        return;
-    }
-
-    await transport.handleRequest(req, res, req.body);
 };
 
-app.get('/sse', handleSse);
-app.post('/sse', handleSse);
+// ─── Routes ──────────────────────────────────────────────────────────────────
+
+// The root path handles both POST (init/messages) and GET (SSE)
+app.use((req, res, next) => {
+    // Only apply auth to POST requests (initialization and subsequent messages)
+    // GET requests (SSE) are authorized by the session ID itself (which was created with auth)
+    if (req.method === 'POST') {
+        return authMiddleware(req, res, next);
+    }
+    next();
+});
+
+app.all('/', handleMcp);
+app.all('/sse', handleMcp);
 
 app.listen(config.PORT, config.HOST, () => {
     console.log(`🚀 PostPulse MCP Server: http://${config.HOST}:${config.PORT}`);
