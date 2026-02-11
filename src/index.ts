@@ -14,17 +14,19 @@ import { config } from './config';
 import { tokenVerifier } from './auth/token_verifier';
 
 // Import tools
-import { listAccountsTool, handleListAccounts } from './tools/list_accounts';
 import { listChatsTool, handleListChats } from './tools/list_chats';
 import { uploadMediaTool, handleUploadMedia } from './tools/upload_media';
 import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
+
+// Import resources
+import { listAccountsResource, handleListAccountsResource } from './resources/accounts';
 
 // ─── MCP Server Factory ─────────────────────────────────────────────────────
 
 const mcpServerUrl = new URL(config.PUBLIC_URL || `http://${config.HOST}:${config.PORT}`);
 
 /**
- * Creates a fresh McpServer instance with all tools registered.
+ * Creates a fresh McpServer instance with all tools and resources registered.
  */
 function createMcpServer() {
     const server = new McpServer({
@@ -32,11 +34,15 @@ function createMcpServer() {
         version: '1.0.0',
     });
 
-    server.registerTool(listAccountsTool.name, {
-        description: listAccountsTool.description,
-        inputSchema: listAccountsTool.inputSchema
-    }, handleListAccounts);
+    // Resources
+    server.registerResource(
+        listAccountsResource.name,
+        listAccountsResource.uri,
+        { description: listAccountsResource.description },
+        handleListAccountsResource
+    );
 
+    // Tools
     server.registerTool(listChatsTool.name, {
         description: listChatsTool.description,
         inputSchema: listChatsTool.inputSchema

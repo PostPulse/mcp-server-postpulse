@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import { handleListAccounts } from '../src/tools/list_accounts';
+import { handleListAccountsResource } from '../src/resources/accounts';
 import { handleListChats } from '../src/tools/list_chats';
 import { handleUploadMedia } from '../src/tools/upload_media';
 import { handleSchedulePost } from '../src/tools/schedule_post';
@@ -34,13 +34,18 @@ async function runVerification() {
         process.exit(1);
     }
 
-    console.log('\n--- 1. Testing list_accounts ---');
-    const accountsResult = await handleListAccounts();
-    formatOutput(accountsResult);
+    console.log('\n--- 1. Testing accounts resource ---');
+    const resourceResult = await handleListAccountsResource(new URL('postpulse://accounts'), {
+        authInfo: { token: process.env.POSTPULSE_ACCESS_TOKEN || '' }
+    });
 
-    if (accountsResult.isError) return;
+    if (!resourceResult.contents || resourceResult.contents.length === 0) {
+        console.error('❌ Resource returned no content');
+        return;
+    }
 
-    const accounts = JSON.parse(accountsResult.content[0].text);
+    console.log('✅ Success: Resource fetched');
+    const accounts = JSON.parse(resourceResult.contents[0].text as string);
     if (accounts.length === 0) {
         console.log('⚠️ No accounts found. Cannot proceed with further tests.');
         return;
@@ -53,6 +58,8 @@ async function runVerification() {
     const chatsResult = await handleListChats({
         accountId: firstAccount.id,
         platform: firstAccount.platform
+    }, {
+        authInfo: { token: process.env.POSTPULSE_ACCESS_TOKEN || '' }
     });
     formatOutput(chatsResult);
 
