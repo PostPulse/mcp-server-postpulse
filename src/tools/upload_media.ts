@@ -39,8 +39,6 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
 
         } else if (mediaData && mediaType) {
             const buffer = Buffer.from(mediaData, 'base64');
-            console.log(mediaData.slice(0, 50));
-            console.log(buffer.slice(0, 10));
             const filename = mediaName || 'file';
 
             // Step 1: Get presigned URL
@@ -57,10 +55,8 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
 
             // Step 2: Upload to presigned URL
             await axios.put(url, buffer, {
-                headers: {
-                    ...headers,
-                    'Content-Type': mediaType
-                }
+                headers: headers,
+                transformRequest: [(data) => data]
             });
 
             return { content: [{ type: 'text' as const, text: key }] };
