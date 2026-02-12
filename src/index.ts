@@ -14,6 +14,7 @@ import { config } from './config';
 import { tokenVerifier } from './auth/token_verifier';
 
 // Import tools
+import { listAccountsTool, handleListAccounts } from './tools/list_accounts';
 import { listChatsTool, handleListChats } from './tools/list_chats';
 import { uploadMediaTool, handleUploadMedia } from './tools/upload_media';
 import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
@@ -43,6 +44,11 @@ function createMcpServer() {
     );
 
     // Tools
+    server.registerTool(listAccountsTool.name, {
+        description: listAccountsTool.description,
+        inputSchema: listAccountsTool.inputSchema
+    }, handleListAccounts);
+
     server.registerTool(listChatsTool.name, {
         description: listChatsTool.description,
         inputSchema: listChatsTool.inputSchema
