@@ -39,6 +39,8 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
 
         } else if (mediaData && mediaType) {
             const buffer = Buffer.from(mediaData, 'base64');
+            console.log(mediaData.slice(0, 50));
+            console.log(buffer.slice(0, 10));
             const filename = mediaName || 'file';
 
             // Step 1: Get presigned URL
