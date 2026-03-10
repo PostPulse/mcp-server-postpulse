@@ -15,7 +15,8 @@ export const uploadMediaTool = {
 
 export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaName }: { mediaUrl?: string, mediaData?: string, mediaType?: string, mediaName?: string }, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const client = createApiClient(token);
+    const clientId = (extra as any)?.authInfo?.clientId || '';
+    const client = createApiClient(token, clientId);
 
     try {
         if (mediaUrl) {

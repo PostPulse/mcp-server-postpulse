@@ -8,7 +8,8 @@ export const listAccountsResource = {
 
 export async function handleListAccountsResource(_uri: URL, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const client = createApiClient(token);
+    const clientId = (extra as any)?.authInfo?.clientId || '';
+    const client = createApiClient(token, clientId);
 
     try {
         const response = await client.get('/v1/accounts');

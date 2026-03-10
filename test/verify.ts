@@ -29,14 +29,14 @@ async function runVerification() {
         process.exit(1);
     }
 
-    if (!process.env.POSTPULSE_CLIENT_ID) {
-        console.error('❌ Missing POSTPULSE_CLIENT_ID in .env');
-        process.exit(1);
-    }
+    const testClientId = 'verify-script-id';
 
     console.log('\n--- 1. Testing accounts resource ---');
     const resourceResult = await handleListAccountsResource(new URL('postpulse://accounts'), {
-        authInfo: { token: process.env.POSTPULSE_ACCESS_TOKEN || '' }
+        authInfo: {
+            token: process.env.POSTPULSE_ACCESS_TOKEN || '',
+            clientId: testClientId
+        }
     });
 
     if (!resourceResult.contents || resourceResult.contents.length === 0) {
@@ -59,7 +59,10 @@ async function runVerification() {
         accountId: firstAccount.id,
         platform: firstAccount.platform
     }, {
-        authInfo: { token: process.env.POSTPULSE_ACCESS_TOKEN || '' }
+        authInfo: {
+            token: process.env.POSTPULSE_ACCESS_TOKEN || '',
+            clientId: testClientId
+        }
     });
     formatOutput(chatsResult);
 

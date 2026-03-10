@@ -17,9 +17,6 @@ const configSchema = z.object({
   // PostPulse API
   POSTPULSE_API_URL: z.string().default('https://api.post-pulse.com'),
 
-  // OAuth client credentials (for the MCP server as a resource server)
-  POSTPULSE_CLIENT_ID: z.string().default(''),
-  POSTPULSE_CLIENT_SECRET: z.string().default(''),
 });
 
 export const config = configSchema.parse(process.env);

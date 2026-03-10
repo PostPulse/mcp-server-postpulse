@@ -12,7 +12,8 @@ export const listChatsTool = {
 
 export async function handleListChats({ accountId, platform }: { accountId: number; platform: string }, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const client = createApiClient(token);
+    const clientId = (extra as any)?.authInfo?.clientId || '';
+    const client = createApiClient(token, clientId);
     try {
         const response = await client.get(`/v1/accounts/${accountId}/chats?platform=${platform}`);
         return { content: [{ type: 'text' as const, text: JSON.stringify(response.data, null, 2) }] };

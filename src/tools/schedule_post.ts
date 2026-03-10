@@ -35,7 +35,8 @@ export async function handleSchedulePost(args: any, extra: any) {
     } = args;
 
     const token = (extra as any)?.authInfo?.token || '';
-    const client = createApiClient(token);
+    const clientId = (extra as any)?.authInfo?.clientId || '';
+    const client = createApiClient(token, clientId);
 
     try {
         // 1. Determine API Type
