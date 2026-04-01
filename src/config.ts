@@ -17,6 +17,9 @@ const configSchema = z.object({
   // PostPulse API
   POSTPULSE_API_URL: z.string().default('https://api.post-pulse.com'),
 
+  // Redis (for MCP session/event persistence)
+  REDIS_URL: z.string().describe('Redis connection URL (e.g. redis://default:password@host:6379)'),
+
 });
 
 export const config = configSchema.parse(process.env);

@@ -11,8 +11,10 @@ import {
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { z } from 'zod';
+import Redis from 'ioredis';
 import { config } from './config';
 import { tokenVerifier } from './auth/token_verifier';
+import { RedisEventStore } from './store/redis_event_store';
 
 // Import tools
 import { listAccountsTool, handleListAccounts } from './tools/list_accounts';
@@ -146,6 +148,11 @@ Steps:
     return server;
 }
 
+// ─── Redis & EventStore ─────────────────────────────────────────────────────
+
+const redis = new Redis(config.REDIS_URL, { family: 6 });
+const eventStore = new RedisEventStore(redis);
+
 // ─── Transport Registry ──────────────────────────────────────────────────────
 
 const transports = new Map<string, StreamableHTTPServerTransport>();
@@ -197,7 +204,9 @@ const authMiddleware = requireBearerAuth({
     resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpServerUrl),
 });
 
-// ─── Routes ──────────────────────────────────────────────────────────────────
+// ─── Health Check ───────────────────────────────────────────────────────────
+
+app.get('/health', (_req, res) => res.status(200).send('ok'));
 
 // ─── MCP Request Handler ─────────────────────────────────────────────────────
 
@@ -244,6 +253,7 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
         // Note: authMiddleware is already applied to the outer route, but we check here for clarity
         const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
+            eventStore,
             onsessioninitialized: (sid) => {
                 transports.set(sid, transport);
                 console.log(`✨ MCP Session started: ${sid}`);

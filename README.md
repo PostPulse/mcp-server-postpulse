@@ -91,6 +91,7 @@ docker run -p 3000:3000 mcp-server-postpulse
 | `POSTPULSE_AUTH_JWKS_URI` | `https://auth.post-pulse.com/.well-known/jwks.json` | JWKS endpoint |
 | `POSTPULSE_AUDIENCE` | `https://api.post-pulse.com` | API audience |
 | `POSTPULSE_API_URL` | `https://api.post-pulse.com` | PostPulse API base URL |
+| `REDIS_URL` | — | Redis connection URL for session/event persistence (required) |
 
 ## Tools
 
