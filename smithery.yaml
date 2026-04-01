@@ -9,7 +9,8 @@ startCommand:
     properties:
       PUBLIC_URL:
         type: string
-        description: "Public-facing URL for the MCP server. Used for OAuth metadata discovery (e.g. https://mcp.post-pulse.com)."
+        default: "https://mcp.post-pulse.com"
+        description: "Public-facing URL for the MCP server. Used for OAuth metadata discovery."
       POSTPULSE_AUTH_ISSUER:
         type: string
         default: "https://auth.post-pulse.com/"
@@ -18,4 +19,8 @@ startCommand:
         type: string
         default: "https://api.post-pulse.com"
         description: "PostPulse API base URL."
+  commandFunction: |
+    (config) => ({
+      url: new URL(config.PUBLIC_URL || "https://mcp.post-pulse.com"),
+    })
   port: 3000

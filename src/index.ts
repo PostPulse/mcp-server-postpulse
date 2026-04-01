@@ -208,6 +208,26 @@ const authMiddleware = requireBearerAuth({
 
 app.get('/health', (_req, res) => res.status(200).send('ok'));
 
+// ─── Server Card (Smithery metadata discovery) ─────────────────────────────
+
+app.get('/.well-known/mcp/server-card.json', (_req, res) => {
+    res.json({
+        serverInfo: {
+            name: 'mcp-server-postpulse',
+            version: '1.0.0',
+        },
+        authentication: {
+            required: true,
+            schemes: ['oauth2'],
+        },
+        configSchema: {
+            type: 'object',
+            properties: {},
+            required: [],
+        },
+    });
+});
+
 // ─── MCP Request Handler ─────────────────────────────────────────────────────
 
 /**

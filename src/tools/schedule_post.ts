@@ -8,7 +8,7 @@ export const schedulePostTool = {
         accountId: z.coerce.number().describe('The account ID from list_accounts'),
         platform: z.string().describe('Platform name (e.g. INSTAGRAM, FACEBOOK, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER)'),
         content: z.string().optional().describe('Post content text'),
-        mediaPaths: z.array(z.string()).optional().describe('Optional array of media paths from upload_media'),
+        mediaPaths: z.array(z.string().describe('Media key returned by upload_media')).optional().describe('Optional array of media keys from upload_media'),
         scheduledTime: z.string().describe('ISO-8601 timestamp for scheduling (e.g., 2023-10-27T10:00:00Z).'),
 
         // Platform specific optional fields
