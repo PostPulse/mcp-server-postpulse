@@ -10,6 +10,7 @@ import {
 } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
+import { z } from 'zod';
 import { config } from './config';
 import { tokenVerifier } from './auth/token_verifier';
 
@@ -30,10 +31,28 @@ const mcpServerUrl = new URL(config.PUBLIC_URL || `http://${config.HOST}:${confi
  * Creates a fresh McpServer instance with all tools and resources registered.
  */
 function createMcpServer() {
-    const server = new McpServer({
-        name: 'mcp-server-postpulse',
-        version: '1.0.0',
-    });
+    const server = new McpServer(
+        {
+            name: 'mcp-server-postpulse',
+            version: '1.0.0',
+        },
+        {
+            instructions: `You are connected to the PostPulse MCP Server, which lets you manage social media accounts and schedule posts across multiple platforms.
+
+Typical workflow:
+1. Call list_accounts to discover the user's connected social media accounts and their IDs.
+2. If the user wants to post media, call upload_media first to upload the image or video. Use the returned media key in the next step.
+3. Call schedule_post with the account ID, platform, content, optional media keys, and a scheduled time in ISO-8601 format.
+
+Important notes:
+- Always call list_accounts before schedule_post so you have a valid accountId.
+- The scheduledTime must be a future ISO-8601 timestamp (e.g., 2025-06-15T14:00:00Z).
+- For Instagram and Facebook, you can set publicationType to FEED, REEL, or STORY (defaults to FEED).
+- For YouTube and TikTok, provide a title for the video.
+- For Telegram and Facebook, you MUST first call list_chats to get the publishing destination (channel/chat ID or Page ID), then pass it as telegramChannelId or facebookPageId in schedule_post. list_chats only works for TELEGRAM and FACEBOOK platforms.
+- upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array.`,
+        },
+    );
 
     // Resources
     server.registerResource(
@@ -45,24 +64,84 @@ function createMcpServer() {
 
     // Tools
     server.registerTool(listAccountsTool.name, {
+        title: 'List Accounts',
         description: listAccountsTool.description,
-        inputSchema: listAccountsTool.inputSchema
+        inputSchema: listAccountsTool.inputSchema,
+        annotations: {
+            title: 'List Accounts',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
     }, handleListAccounts);
 
     server.registerTool(listChatsTool.name, {
+        title: 'List Publishing Destinations',
         description: listChatsTool.description,
-        inputSchema: listChatsTool.inputSchema
+        inputSchema: listChatsTool.inputSchema,
+        annotations: {
+            title: 'List Publishing Destinations',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
     }, handleListChats);
 
     server.registerTool(uploadMediaTool.name, {
+        title: 'Upload Media',
         description: uploadMediaTool.description,
-        inputSchema: uploadMediaTool.inputSchema
+        inputSchema: uploadMediaTool.inputSchema,
+        annotations: {
+            title: 'Upload Media',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: false,
+            openWorldHint: false,
+        },
     }, handleUploadMedia);
 
     server.registerTool(schedulePostTool.name, {
+        title: 'Schedule Post',
         description: schedulePostTool.description,
-        inputSchema: schedulePostTool.inputSchema
+        inputSchema: schedulePostTool.inputSchema,
+        annotations: {
+            title: 'Schedule Post',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: false,
+            openWorldHint: false,
+        },
     }, handleSchedulePost);
+
+    // Prompts
+    server.registerPrompt('schedule-post', {
+        title: 'Schedule a Social Media Post',
+        description: 'Guide through scheduling a post to a connected social media account. Walks through account selection, optional media upload, and post scheduling.',
+        argsSchema: {
+            platform: z.string().optional().describe('Target platform (e.g. INSTAGRAM, FACEBOOK, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER, BLUESKY)'),
+            content: z.string().optional().describe('Post text or caption'),
+        },
+    }, async (args) => {
+        const platform = args.platform ? `for ${args.platform}` : '';
+        const content = args.content ? `\nPost content: "${args.content}"` : '';
+        return {
+            messages: [{
+                role: 'user',
+                content: {
+                    type: 'text',
+                    text: `Help me schedule a social media post ${platform}.${content}
+
+Steps:
+1. Call list_accounts to find my connected accounts.
+2. If the platform is FACEBOOK or TELEGRAM, call list_chats to get the publishing destination (Page or Channel).
+3. If I need to attach media, call upload_media with the image/video URL first.
+4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
+                },
+            }],
+        };
+    });
 
     return server;
 }
@@ -92,6 +171,7 @@ const oauthMetadata: OAuthMetadata = {
     issuer: config.POSTPULSE_AUTH_ISSUER,
     authorization_endpoint: `${issuerUrl}authorize`,
     token_endpoint: `${issuerUrl}oauth/token`,
+    registration_endpoint: `${issuerUrl}oidc/register`,
     response_types_supported: ['code'],
 };
 

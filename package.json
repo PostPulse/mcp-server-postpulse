@@ -1,7 +1,7 @@
 {
   "name": "mcp-server-postpulse",
   "version": "1.0.0",
-  "description": "PostPulse MCP Server",
+  "description": "MCP server for PostPulse — schedule social media posts, upload media, and manage accounts across Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, X (Twitter), Bluesky, and Telegram.",
   "main": "build/index.js",
   "scripts": {
     "build": "tsc",
@@ -12,13 +12,29 @@
     "type": "git",
     "url": "git+https://github.com/PostPulse/mcp-server-postpulse.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "postpulse",
+    "social-media",
+    "scheduling",
+    "instagram",
+    "facebook",
+    "youtube",
+    "tiktok",
+    "threads",
+    "linkedin",
+    "twitter",
+    "bluesky",
+    "telegram"
+  ],
+  "author": "PostPulse",
+  "license": "MIT",
+  "homepage": "https://developers.post-pulse.com",
   "type": "commonjs",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "axios": "^1.13.5",
+    "axios": "1.13.5",
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
     "eventsource": "^4.1.0",

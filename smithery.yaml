@@ -1,0 +1,21 @@
+build:
+  dockerfile: Dockerfile
+
+startCommand:
+  type: http
+  configSchema:
+    type: object
+    required: []
+    properties:
+      PUBLIC_URL:
+        type: string
+        description: "Public-facing URL for the MCP server. Used for OAuth metadata discovery (e.g. https://mcp.post-pulse.com)."
+      POSTPULSE_AUTH_ISSUER:
+        type: string
+        default: "https://auth.post-pulse.com/"
+        description: "OAuth 2.0 issuer URL for token verification."
+      POSTPULSE_API_URL:
+        type: string
+        default: "https://api.post-pulse.com"
+        description: "PostPulse API base URL."
+  port: 3000

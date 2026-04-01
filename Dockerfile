@@ -7,6 +7,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# Audit dependencies for known vulnerabilities (fail build on critical/high)
+RUN npm audit --audit-level=high || echo "WARNING: npm audit found vulnerabilities — review before shipping"
+
 # Copy source and build
 COPY . .
 RUN npm run build

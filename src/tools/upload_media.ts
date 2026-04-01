@@ -4,12 +4,12 @@ import axios from 'axios';
 
 export const uploadMediaTool = {
     name: 'upload_media',
-    description: 'Upload media from a URL or binary data for use in scheduled posts. Returns the media path/key.',
+    description: 'Upload media files (images, videos) for use in scheduled posts. Supports two modes: (1) provide a public mediaUrl to import from the web (the server handles download and processing automatically), or (2) provide base64-encoded mediaData with a mediaType MIME type for direct binary upload. Returns a media key string that you pass to the mediaPaths parameter of schedule_post.',
     inputSchema: z.object({
-        mediaUrl: z.string().url().describe('The public URL of the media file to upload').optional(),
-        mediaData: z.string().describe('Base64 encoded media data').optional(),
-        mediaType: z.string().describe('MIME type of the media file (required if mediaData is provided)').optional(),
-        mediaName: z.string().describe('Name of the media file').optional(),
+        mediaUrl: z.string().url().optional().describe('Public URL of the media file to import (e.g. https://example.com/photo.jpg). The server downloads and processes the file automatically. Use this OR mediaData, not both.'),
+        mediaData: z.string().optional().describe('Base64-encoded binary content of the media file. Must be used together with mediaType. Use this OR mediaUrl, not both.'),
+        mediaType: z.string().optional().describe('MIME type of the media file (e.g. image/jpeg, image/png, video/mp4). Required when using mediaData.'),
+        mediaName: z.string().optional().describe('Filename for the uploaded media (e.g. photo.jpg). Optional, defaults to "file" if not provided.'),
     }),
 };
 

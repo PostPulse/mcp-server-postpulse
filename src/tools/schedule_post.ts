@@ -3,7 +3,7 @@ import { createApiClient } from '../api/client';
 
 export const schedulePostTool = {
     name: 'schedule_post',
-    description: 'Schedule a social media post to one of your connected accounts. Supports various platforms including Instagram, Facebook, YouTube, TikTok, and more.',
+    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts, a platform identifier, and a scheduledTime in ISO-8601 format. For Facebook and Telegram, you MUST first call list_chats to get the publishing destination (Page ID or Channel ID) and pass it as facebookPageId or telegramChannelId respectively. Optionally attach media from upload_media via mediaPaths, set publication type, video title, or topic tag depending on the platform.',
     inputSchema: z.object({
         accountId: z.coerce.number().describe('The account ID from list_accounts'),
         platform: z.string().describe('Platform name (e.g. INSTAGRAM, FACEBOOK, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER)'),
@@ -12,8 +12,8 @@ export const schedulePostTool = {
         scheduledTime: z.string().describe('ISO-8601 timestamp for scheduling (e.g., 2023-10-27T10:00:00Z).'),
 
         // Platform specific optional fields
-        facebookPageId: z.string().optional().describe('Facebook Page ID (required for Facebook if not using default)'),
-        telegramChannelId: z.string().optional().describe('Telegram Channel ID (required for Telegram if not using default)'),
+        facebookPageId: z.string().optional().describe('Facebook Page ID (required for Facebook). Get it from list_chats with platform=FACEBOOK'),
+        telegramChannelId: z.string().optional().describe('Telegram Channel/Chat ID (required for Telegram). Get it from list_chats with platform=TELEGRAM'),
         publicationType: z.enum(['FEED', 'REEL', 'STORY']).optional().describe('Publication type for Instagram/Facebook (default: FEED)'),
         title: z.string().optional().describe('Title for YouTube or TikTok videos'),
         topicTag: z.string().optional().describe('Topic tag for Threads'),

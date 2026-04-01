@@ -3,7 +3,7 @@ import { createApiClient } from '../api/client';
 
 export const listAccountsTool = {
     name: 'list_accounts',
-    description: 'List all connected social media accounts (Instagram, Facebook, Telegram, etc.) with their IDs and platforms.',
+    description: 'List all connected social media accounts (Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, X/Twitter, Telegram) with their IDs, platforms, usernames, and display names. Call this first to discover available accounts before using schedule_post or list_chats.',
     inputSchema: z.object({}),
 };
 
