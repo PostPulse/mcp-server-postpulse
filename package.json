@@ -34,6 +34,7 @@
   "type": "commonjs",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "@sentry/node": "^10.48.0",
     "axios": "1.13.5",
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",

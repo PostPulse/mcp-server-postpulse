@@ -20,6 +20,9 @@ const configSchema = z.object({
   // Redis (for MCP session/event persistence)
   REDIS_URL: z.string().describe('Redis connection URL (e.g. redis://default:password@host:6379)'),
 
+  // Sentry
+  SENTRY_DSN: z.string().optional().describe('Sentry DSN for error monitoring'),
+
 });
 
 export const config = configSchema.parse(process.env);

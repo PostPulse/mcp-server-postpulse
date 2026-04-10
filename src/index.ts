@@ -1,3 +1,5 @@
+import './instrument';
+import * as Sentry from '@sentry/node';
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -316,6 +318,8 @@ app.use((req, res, next) => {
 
 app.all('/', handleMcp);
 app.all('/sse', handleMcp);
+
+Sentry.setupExpressErrorHandler(app);
 
 app.listen(config.PORT, config.HOST, () => {
     console.log(`🚀 PostPulse MCP Server: http://${config.HOST}:${config.PORT}`);
