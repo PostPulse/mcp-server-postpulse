@@ -124,7 +124,7 @@ Important notes:
         title: 'Schedule a Social Media Post',
         description: 'Guide through scheduling a post to a connected social media account. Walks through account selection, optional media upload, and post scheduling.',
         argsSchema: {
-            platform: z.string().optional().describe('Target platform (e.g. INSTAGRAM, FACEBOOK, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER, BLUESKY)'),
+            platform: z.string().optional().describe('Target platform (e.g. INSTAGRAM, FACEBOOK, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER, BLUE_SKY)'),
             content: z.string().optional().describe('Post text or caption'),
         },
     }, async (args) => {

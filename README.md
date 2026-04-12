@@ -139,7 +139,7 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `accountId` | number | Yes | Account ID from `list_accounts` |
-| `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER` |
+| `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER`, `BLUE_SKY` |
 | `content` | string | No | Post text/caption |
 | `mediaPaths` | string[] | No | Media keys returned by `upload_media` |
 | `scheduledTime` | string | Yes | ISO-8601 timestamp (e.g., `2025-01-15T10:00:00Z`) |
