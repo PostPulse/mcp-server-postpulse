@@ -22,9 +22,14 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
             const importId = importRes.data.importId;
 
             // Poll for status
+            const maxPolls = 150; // ~5 minutes at 2s per poll
+            let polls = 0;
             let status = 'PENDING';
             let mediaPath = '';
             while (status === 'PENDING' || status === 'PROCESSING') {
+                if (++polls > maxPolls) {
+                    throw new Error('Media import timed out after ~5 minutes. Retry the import, or upload the file directly with base64 mediaData instead.');
+                }
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 const statusRes = await ctx.client.get(`/v1/media/upload/import/${importId}`);
                 status = statusRes.data.status;
