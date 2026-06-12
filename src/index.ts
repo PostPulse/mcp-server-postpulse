@@ -23,6 +23,9 @@ import { listAccountsTool, handleListAccounts } from './tools/list_accounts';
 import { listChatsTool, handleListChats } from './tools/list_chats';
 import { uploadMediaTool, handleUploadMedia } from './tools/upload_media';
 import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
+import { connectAccountTool, handleConnectAccount } from './tools/connect_account';
+import { getStartedTool, handleGetStarted } from './tools/get_started';
+import { logFunnel, userHash } from './logging/funnel';
 
 // Import resources
 import { listAccountsResource, handleListAccountsResource } from './resources/accounts';
@@ -42,6 +45,10 @@ function createMcpServer() {
         },
         {
             instructions: `You are connected to the PostPulse MCP Server, which lets you manage social media accounts and schedule posts across multiple platforms.
+
+Getting started (first-time users):
+- If you are unsure of the user's state, call get_started first. It reports whether the PostPulse account is active, which social media accounts are connected, and exactly what to do next.
+- Posting requires at least one CONNECTED social media account. If there is none, call connect_account with the user's platform — it returns a URL the user must open in a browser to approve access. After they confirm, call list_accounts to verify. (Exception: Telegram is connected inside the PostPulse app at https://post-pulse.com/app/accounts.)
 
 Typical workflow:
 1. Call list_accounts to discover the user's connected social media accounts and their IDs.
@@ -119,6 +126,32 @@ Important notes:
         },
     }, handleSchedulePost);
 
+    server.registerTool(getStartedTool.name, {
+        title: 'Get Started / Onboarding Status',
+        description: getStartedTool.description,
+        inputSchema: getStartedTool.inputSchema,
+        annotations: {
+            title: 'Get Started / Onboarding Status',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleGetStarted);
+
+    server.registerTool(connectAccountTool.name, {
+        title: 'Connect Social Media Account',
+        description: connectAccountTool.description,
+        inputSchema: connectAccountTool.inputSchema,
+        annotations: {
+            title: 'Connect Social Media Account',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: false,
+            openWorldHint: false,
+        },
+    }, handleConnectAccount);
+
     // Prompts
     server.registerPrompt('schedule-post', {
         title: 'Schedule a Social Media Post',
@@ -138,7 +171,7 @@ Important notes:
                     text: `Help me schedule a social media post ${platform}.${content}
 
 Steps:
-1. Call list_accounts to find my connected accounts.
+1. Call list_accounts to find my connected accounts. If none are connected, call connect_account with my platform and give me the URL to open.
 2. If the platform is FACEBOOK or TELEGRAM, call list_chats to get the publishing destination (Page or Channel).
 3. If I need to attach media, call upload_media with the image/video URL first.
 4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
@@ -254,6 +287,7 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
     if (sessionId) {
         const transport = transports.get(sessionId);
         if (!transport) {
+            logFunnel({ evt: 'mcp_session_not_found', sessionId, method: req.method });
             if (req.method === 'GET') {
                 res.status(404).send('Session not found');
             } else {
@@ -273,16 +307,23 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
     if (req.method === 'POST' && isInitializeRequest(req.body)) {
         // Auth is required for initialization
         // Note: authMiddleware is already applied to the outer route, but we check here for clarity
+        // requireBearerAuth has already validated the token and set req.auth
+        const authInfo = (req as any).auth;
         const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
             eventStore,
             onsessioninitialized: (sid) => {
                 transports.set(sid, transport);
-                console.log(`✨ MCP Session started: ${sid}`);
+                logFunnel({
+                    evt: 'mcp_session_started',
+                    sessionId: sid,
+                    userHash: userHash(authInfo?.extra?.sub),
+                    clientId: authInfo?.clientId || 'unknown',
+                });
             },
             onsessionclosed: (sid) => {
                 transports.delete(sid);
-                console.log(`👋 MCP Session closed: ${sid}`);
+                logFunnel({ evt: 'mcp_session_closed', sessionId: sid });
             },
         });
 

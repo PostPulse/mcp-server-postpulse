@@ -1,6 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { config } from '../config';
+import { logFunnel } from '../logging/funnel';
 
 const JWKS = createRemoteJWKSet(new URL(config.POSTPULSE_AUTH_JWKS_URI));
 
@@ -23,9 +24,11 @@ export const tokenVerifier = {
                     ? (payload.scope as string).split(' ')
                     : [],
                 expiresAt: payload.exp,
+                // Carried into tool handlers (extra.authInfo.extra.sub) for funnel attribution.
+                extra: { sub: payload.sub },
             };
         } catch (error: any) {
-            console.error('[auth] JWT verification failed:', error.message);
+            logFunnel({ evt: 'mcp_auth_failed', reason: error.message });
             throw new InvalidTokenError(error.message);
         }
     },

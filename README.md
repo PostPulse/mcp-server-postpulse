@@ -95,6 +95,28 @@ docker run -p 3000:3000 mcp-server-postpulse
 
 ## Tools
 
+### `get_started`
+
+Check the user's onboarding status: whether the PostPulse account is active, which social media accounts are connected, and what to do next. Agents should call this first in a new conversation, or whenever another tool reports a missing account or authorization problem.
+
+**Parameters:** None
+
+**Returns:** JSON object with `signedInAs` (email, name), `connectedSocialAccounts`, `readyToPost`, and a concrete `nextStep` instruction.
+
+### `connect_account`
+
+Get a URL the user must open in a browser to connect (or reconnect) a social media account via OAuth. The link is single-use and expires in about 10 minutes. After the user approves access, they see an "Account connected" confirmation page and the account appears in `list_accounts`.
+
+Supports `INSTAGRAM`, `FACEBOOK`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER`, `BLUE_SKY`. Telegram is the exception — it is connected inside the PostPulse app at [post-pulse.com/app/accounts](https://post-pulse.com/app/accounts).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `platform` | string | Yes | Platform to connect (see list above) |
+| `accountId` | number | No | Only to reconnect an existing account that needs reauthorization |
+
+**Returns:** JSON object with `connectUrl`, `platform`, `expiresInMinutes`, and `nextSteps`.
+
 ### `list_accounts`
 
 List all connected social media accounts with their IDs, platforms, usernames, and display names. Use this as the first step to discover available accounts before scheduling posts or accessing chats.
@@ -166,6 +188,26 @@ MCP clients that support OAuth can register automatically via **Dynamic Client R
 ### Pre-Registered Client Credentials
 
 If you already have client credentials created through the [PostPulse Developer Portal](https://developers.post-pulse.com), you can configure your MCP client to use them directly instead of DCR. Pass your `client_id` and `client_secret` in the OAuth authorization code flow against the PostPulse authorization server.
+
+## Funnel Logging
+
+The server emits one structured JSON log line per MCP event on stdout (visible in `fly logs`):
+
+| Event | Meaning |
+|---|---|
+| `mcp_session_started` / `mcp_session_closed` | Session lifecycle, with `userHash` and `clientId` |
+| `mcp_auth_failed` | Bearer token rejected (expired/invalid) |
+| `mcp_session_not_found` | Client retried a stale session ID |
+| `mcp_tool_call` | One per tool invocation: `tool`, `outcome` (`ok`/`error`), `errorKind`, `httpStatus`, `durMs`, plus tool-specific fields |
+
+`userHash` is a truncated SHA-256 of the token's `sub` claim — stable per user, no raw PII in logs. Useful funnel queries:
+
+```bash
+fly logs -a mcp-server-postpulse | grep '"evt":"mcp_tool_call"'          # all tool calls
+fly logs -a mcp-server-postpulse | grep '"zeroAccounts":true'            # users with no connected account
+fly logs -a mcp-server-postpulse | grep '"tool":"connect_account"'       # connect links issued
+fly logs -a mcp-server-postpulse | grep '"tool":"schedule_post","outcome":"ok"'  # funnel completions
+```
 
 ## Example Workflow
 

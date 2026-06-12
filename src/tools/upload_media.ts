@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createApiClient } from '../api/client';
 import axios from 'axios';
+import { toolContext } from './shared';
 
 export const uploadMediaTool = {
     name: 'upload_media',
@@ -14,13 +14,11 @@ export const uploadMediaTool = {
 };
 
 export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaName }: { mediaUrl?: string, mediaData?: string, mediaType?: string, mediaName?: string }, extra: any) {
-    const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const ctx = toolContext('upload_media', extra);
 
     try {
         if (mediaUrl) {
-            const importRes = await client.post('/v1/media/upload/import', { url: mediaUrl });
+            const importRes = await ctx.client.post('/v1/media/upload/import', { url: mediaUrl });
             const importId = importRes.data.importId;
 
             // Poll for status
@@ -28,7 +26,7 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
             let mediaPath = '';
             while (status === 'PENDING' || status === 'PROCESSING') {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
-                const statusRes = await client.get(`/v1/media/upload/import/${importId}`);
+                const statusRes = await ctx.client.get(`/v1/media/upload/import/${importId}`);
                 status = statusRes.data.status;
                 mediaPath = statusRes.data.path;
 
@@ -36,6 +34,7 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
                     throw new Error('Media import failed');
                 }
             }
+            ctx.ok({ mode: 'url' });
             return { content: [{ type: 'text' as const, text: mediaPath }] };
 
         } else if (mediaData && mediaType) {
@@ -43,7 +42,7 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
             const filename = mediaName || 'file';
 
             // Step 1: Get presigned URL
-            const uploadRes = await client.post('/v1/media/upload/urls', {
+            const uploadRes = await ctx.client.post('/v1/media/upload/urls', {
                 filename,
                 contentType: mediaType,
                 sizeBytes: buffer.length
@@ -60,19 +59,14 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
                 transformRequest: [(data) => data]
             });
 
+            ctx.ok({ mode: 'base64' });
             return { content: [{ type: 'text' as const, text: key }] };
 
         } else {
-            return {
-                content: [{ type: 'text' as const, text: 'Error: Either mediaUrl or (mediaData and mediaType) must be provided.' }],
-                isError: true,
-            };
+            return ctx.invalid('Either mediaUrl or (mediaData and mediaType) must be provided.');
         }
 
     } catch (error: any) {
-        return {
-            content: [{ type: 'text' as const, text: `Error: ${error.message} ${error.response?.data ? JSON.stringify(error.response.data) : ''}` }],
-            isError: true,
-        };
+        return ctx.fail(error, { mode: mediaUrl ? 'url' : 'base64' });
     }
 }

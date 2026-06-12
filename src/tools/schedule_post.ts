@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createApiClient } from '../api/client';
+import { toolContext } from './shared';
 
 export const schedulePostTool = {
     name: 'schedule_post',
@@ -34,9 +34,7 @@ export async function handleSchedulePost(args: any, extra: any) {
         topicTag
     } = args;
 
-    const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const ctx = toolContext('schedule_post', extra);
 
     try {
         // 1. Determine API Type
@@ -95,13 +93,11 @@ export async function handleSchedulePost(args: any, extra: any) {
             publications: [publication],
         };
 
-        const response = await client.post('/v1/posts', body);
+        const response = await ctx.client.post('/v1/posts', body);
+        ctx.ok({ platform, hasMedia: !!(mediaPaths && mediaPaths.length > 0) });
         return { content: [{ type: 'text' as const, text: `Post scheduled successfully (ID: ${response.data.id})` }] };
 
     } catch (error: any) {
-        return {
-            content: [{ type: 'text' as const, text: `Error: ${error.message} ${error.response?.data ? JSON.stringify(error.response.data) : ''}` }],
-            isError: true,
-        };
+        return ctx.fail(error, { platform });
     }
 }
