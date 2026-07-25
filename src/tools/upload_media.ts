@@ -19,24 +19,27 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
     try {
         if (mediaUrl) {
             const importRes = await ctx.client.post('/v1/media/upload/import', { url: mediaUrl });
-            const importId = importRes.data.importId;
+            const importId = importRes.data.id;
 
-            // Poll for status
+            // Poll for status. State names come from the backend's MediaImportState enum —
+            // anything that is not terminal means the import is still in flight.
             const maxPolls = 150; // ~5 minutes at 2s per poll
             let polls = 0;
-            let status = 'PENDING';
+            let state = ''; // not READY, so we always GET at least once — the POST response
+                            // carries only id + state, and s3Key is only on the status response
             let mediaPath = '';
-            while (status === 'PENDING' || status === 'PROCESSING') {
+            while (state !== 'READY') {
                 if (++polls > maxPolls) {
                     throw new Error('Media import timed out after ~5 minutes. Retry the import, or upload the file directly with base64 mediaData instead.');
                 }
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 const statusRes = await ctx.client.get(`/v1/media/upload/import/${importId}`);
-                status = statusRes.data.status;
-                mediaPath = statusRes.data.path;
+                state = statusRes.data.state;
+                mediaPath = statusRes.data.s3Key;
 
-                if (status === 'FAILED') {
-                    throw new Error('Media import failed');
+                if (state === 'FAILED_TEMPORARY' || state === 'FAILED_PERMANENT') {
+                    const detail = statusRes.data.errorMessage || statusRes.data.errorCode || 'unknown error';
+                    throw new Error(`Media import failed (${state}): ${detail}`);
                 }
             }
             ctx.ok({ mode: 'url' });
