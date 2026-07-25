@@ -21,19 +21,23 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
     try {
         if (mediaUrl) {
             const importRes = await client.post('/v1/media/upload/import', { url: mediaUrl });
-            const importId = importRes.data.importId;
+            const importId = importRes.data.id;
 
-            // Poll for status
-            let status = 'PENDING';
+            // Poll while the import is in flight. State names come from the backend's
+            // MediaImportState enum; looping on the in-flight set (rather than "until READY")
+            // means an unrecognised state ends the loop instead of spinning forever.
+            let state = 'QUEUED';
             let mediaPath = '';
-            while (status === 'PENDING' || status === 'PROCESSING') {
+            while (state === 'QUEUED' || state === 'DOWNLOADING'
+                || state === 'VALIDATING' || state === 'UPLOADING') {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 const statusRes = await client.get(`/v1/media/upload/import/${importId}`);
-                status = statusRes.data.status;
-                mediaPath = statusRes.data.path;
+                state = statusRes.data.state;
+                mediaPath = statusRes.data.s3Key;
 
-                if (status === 'FAILED') {
-                    throw new Error('Media import failed');
+                if (state === 'FAILED_TEMPORARY' || state === 'FAILED_PERMANENT') {
+                    const detail = statusRes.data.errorMessage || statusRes.data.errorCode || 'unknown error';
+                    throw new Error(`Media import failed (${state}): ${detail}`);
                 }
             }
             return { content: [{ type: 'text' as const, text: mediaPath }] };
