@@ -23,6 +23,11 @@ const configSchema = z.object({
   // Sentry
   SENTRY_DSN: z.string().optional().describe('Sentry DSN for error monitoring'),
 
+  // Grafana Loki log shipping
+  LOKI_URL: z.string().optional().describe('Grafana Loki base URL (e.g. https://logs-prod-012.grafana.net)'),
+  LOKI_USER: z.string().optional().describe('Grafana Cloud Loki user id'),
+  LOKI_PASSWORD: z.string().optional().describe('Grafana Cloud Loki API token'),
+
 });
 
 export const config = configSchema.parse(process.env);

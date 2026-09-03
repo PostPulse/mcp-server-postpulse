@@ -1,6 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { config } from '../config';
+import { logger } from '../logger';
 
 const JWKS = createRemoteJWKSet(new URL(config.POSTPULSE_AUTH_JWKS_URI));
 
@@ -25,7 +26,7 @@ export const tokenVerifier = {
                 expiresAt: payload.exp,
             };
         } catch (error: any) {
-            console.error('[auth] JWT verification failed:', error.message);
+            logger.error(`[auth] JWT verification failed: ${error.message}`);
             throw new InvalidTokenError(error.message);
         }
     },

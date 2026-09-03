@@ -15,6 +15,7 @@ import { OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { z } from 'zod';
 import Redis from 'ioredis';
 import { config } from './config';
+import { logger } from './logger';
 import { tokenVerifier } from './auth/token_verifier';
 import { RedisEventStore } from './store/redis_event_store';
 
@@ -278,11 +279,11 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
             eventStore,
             onsessioninitialized: (sid) => {
                 transports.set(sid, transport);
-                console.log(`✨ MCP Session started: ${sid}`);
+                logger.info(`✨ MCP Session started: ${sid}`);
             },
             onsessionclosed: (sid) => {
                 transports.delete(sid);
-                console.log(`👋 MCP Session closed: ${sid}`);
+                logger.info(`👋 MCP Session closed: ${sid}`);
             },
         });
 
@@ -322,8 +323,8 @@ app.all('/sse', handleMcp);
 Sentry.setupExpressErrorHandler(app);
 
 app.listen(config.PORT, config.HOST, () => {
-    console.log(`🚀 PostPulse MCP Server: http://${config.HOST}:${config.PORT}`);
+    logger.info(`🚀 PostPulse MCP Server: http://${config.HOST}:${config.PORT}`);
     if (config.PUBLIC_URL) {
-        console.log(`🌍 Public URL: ${config.PUBLIC_URL}`);
+        logger.info(`🌍 Public URL: ${config.PUBLIC_URL}`);
     }
 });
