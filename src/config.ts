@@ -19,6 +19,11 @@ const configSchema = z.object({
 
   // Redis (for MCP session/event persistence)
   REDIS_URL: z.string().describe('Redis connection URL (e.g. redis://default:password@host:6379)'),
+  REDIS_IP_FAMILY: z.coerce
+    .number()
+    .pipe(z.union([z.literal(4), z.literal(6), z.literal(0)]))
+    .default(6)
+    .describe('IP address family for the Redis connection: 4, 6, or 0 (try both). Defaults to 6 for backwards compatibility with IPv6-only Redis endpoints; set 4 for IPv4-only endpoints.'),
 
   // Sentry
   SENTRY_DSN: z.string().optional().describe('Sentry DSN for error monitoring'),

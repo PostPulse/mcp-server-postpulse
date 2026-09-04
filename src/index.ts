@@ -153,7 +153,7 @@ Steps:
 
 // ─── Redis & EventStore ─────────────────────────────────────────────────────
 
-const redis = new Redis(config.REDIS_URL, { family: 6 });
+const redis = new Redis(config.REDIS_URL, { family: config.REDIS_IP_FAMILY });
 const eventStore = new RedisEventStore(redis);
 
 // ─── Transport Registry ──────────────────────────────────────────────────────
