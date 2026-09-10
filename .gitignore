@@ -24,3 +24,6 @@ yarn-error.log*
 
 # Credentials
 .credentials.json
+
+CLAUDE.md
+.memory-bank/
