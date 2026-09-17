@@ -167,6 +167,20 @@ MCP clients that support OAuth can register automatically via **Dynamic Client R
 
 If you already have client credentials created through the [PostPulse Developer Portal](https://developers.post-pulse.com), you can configure your MCP client to use them directly instead of DCR. Pass your `client_id` and `client_secret` in the OAuth authorization code flow against the PostPulse authorization server.
 
+## HTTP Endpoints
+
+| Path | Purpose |
+|---|---|
+| `POST /`, `POST /sse` | MCP Streamable HTTP transport (initialize + messages), Bearer token required |
+| `GET /`, `GET /sse` with `Mcp-Session-Id` | SSE stream for an existing session |
+| `GET /`, `GET /sse` with `Accept: text/html` | Minimal landing page for browsers and crawlers (links to the setup guide and API docs). Any other `Accept` without a session still gets `400` |
+| `GET /health` | Health check (`ok`) |
+| `GET /robots.txt` | `User-agent: * / Disallow: /` — the host is not a website |
+| `GET /.well-known/*` | OAuth metadata and the Smithery server card |
+| anything else | `404` (`{"error":"Not found"}` or plain text for HTML clients) |
+
+Every response carries `X-Robots-Tag: noindex, nofollow` so search engines never index this host.
+
 ## Example Workflow
 
 A typical interaction with the PostPulse MCP server:
