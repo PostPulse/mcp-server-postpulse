@@ -171,6 +171,40 @@ app.use(
     }),
 );
 
+// ─── Crawler Hygiene ────────────────────────────────────────────────────────
+// This host is an MCP endpoint, not a website. Search engines still discover it via links
+// from the docs, so every response (including /.well-known/* and /health) is marked noindex
+// and robots.txt disallows crawling altogether. Without this, Search Console reports the
+// 400 from `GET /` (see handleMcp fallback) as an indexing error.
+
+app.use((_req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    next();
+});
+
+app.get('/robots.txt', (_req, res) => {
+    res.status(200).type('text/plain').send('User-agent: *\nDisallow: /\n');
+});
+
+/** Minimal page for humans (and crawlers) who open the server URL in a browser. */
+const LANDING_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>PostPulse MCP Server</title>
+<style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1rem;line-height:1.5}</style>
+</head>
+<body>
+<h1>PostPulse MCP Server</h1>
+<p>This host is a Model Context Protocol (MCP) endpoint, not a website.</p>
+<p>Connect your MCP client to <code>${mcpServerUrl.href.replace(/\/$/, '')}</code> and authenticate via OAuth.</p>
+<p><a href="https://post-pulse.com/mcp-server">Setup guide</a> &middot; <a href="https://post-pulse.com/api-docs">API documentation</a></p>
+</body>
+</html>
+`;
+
 // ─── OAuth Discovery Endpoints ───────────────────────────────────────────────
 
 const issuerUrl = config.POSTPULSE_AUTH_ISSUER.endsWith('/')
@@ -295,6 +329,12 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
 
     // 4. Fallback: Bad Request
     if (req.method === 'GET') {
+        // A browser or crawler prefers HTML; an MCP client opening an SSE stream asks for
+        // text/event-stream (and keeps getting the 400 below, as the SDK expects).
+        if (req.accepts(['text/event-stream', 'text/html']) === 'text/html') {
+            res.status(200).type('html').send(LANDING_HTML);
+            return;
+        }
         res.status(400).send('Mcp-Session-Id header or session_id query parameter is required for SSE');
     } else {
         res.status(400).json({
@@ -319,6 +359,16 @@ app.use((req, res, next) => {
 
 app.all('/', handleMcp);
 app.all('/sse', handleMcp);
+
+// Explicit 404 instead of Express' default "Cannot GET /..." HTML page.
+// Must stay after every route and before the Sentry error handler.
+app.use((req, res) => {
+    if (req.accepts(['json', 'html']) === 'html') {
+        res.status(404).type('text/plain').send('Not found');
+    } else {
+        res.status(404).json({ error: 'Not found' });
+    }
+});
 
 Sentry.setupExpressErrorHandler(app);
 
