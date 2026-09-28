@@ -44,7 +44,8 @@ const BILLING_URL = 'https://post-pulse.com/app/billing';
 /** Reason returned by `GET /v1/accounts/can-connect` before the signup bonus credits land. */
 const NO_SUBSCRIPTION_REASON = 'No active subscription found';
 const SIGNUP_BONUS_RETRY_MS = 2000;
-const ELICITATION_TIMEOUT_MS = 120_000;
+/** How long the server keeps the (not awaited) URL elicitation pending; the tool result does not wait for it. */
+const ELICITATION_TIMEOUT_MS = 10 * 60_000;
 
 /** Indirection so tests can stub the retry delay. */
 export const connectAccountDeps = {
@@ -95,27 +96,25 @@ function buildLinkText(platform: string, url: string, reconnect: boolean): strin
 }
 
 /**
- * Opens a URL-mode elicitation when the client supports it. Returns a line to put in front of
- * the tool result, or null when elicitation is unavailable or failed (text-only fallback).
+ * Opens a URL-mode elicitation when the client supports it, without waiting for the answer.
+ * Clients time out tool calls after about 60 s, while a client may answer only once the user
+ * has finished the whole platform consent (MCP Inspector sends `accept` on "I've completed it"),
+ * so awaiting it would fail the tool call. The text result always carries the link anyway.
+ * Returns true when the dialog request was sent.
  */
-async function tryUrlElicitation(elicitor: UrlElicitor | undefined, extra: any, platform: string, url: string) {
+function startUrlElicitation(elicitor: UrlElicitor | undefined, extra: any, platform: string, url: string): boolean {
     if (!elicitor?.getClientCapabilities()?.elicitation?.url) {
-        return null;
+        return false;
     }
-    try {
-        const result = await elicitor.elicitInput({
-            mode: 'url',
-            elicitationId: randomUUID(),
-            url,
-            message: `Open this link to connect ${PLATFORM_NAMES[platform] ?? platform} to your PostPulse account.`,
-        }, { relatedRequestId: extra?.requestId, timeout: ELICITATION_TIMEOUT_MS });
-        return result.action === 'accept'
-            ? 'The user accepted opening the link in the browser.'
-            : 'The user declined to open the link from the dialog; they can still use the link below.';
-    } catch (error: any) {
-        logger.warn({ tool: 'connect_account', err: error?.message }, 'URL elicitation failed, falling back to text');
-        return null;
-    }
+    elicitor.elicitInput({
+        mode: 'url',
+        elicitationId: randomUUID(),
+        url,
+        message: `Open this link to connect ${PLATFORM_NAMES[platform] ?? platform} to your PostPulse account.`,
+    }, { relatedRequestId: extra?.requestId, timeout: ELICITATION_TIMEOUT_MS })
+        .then((result) => logger.info({ tool: 'connect_account', platform, action: result.action }, 'URL elicitation answered'))
+        .catch((error: any) => logger.warn({ tool: 'connect_account', platform, err: error?.message }, 'URL elicitation failed'));
+    return true;
 }
 
 export async function handleConnectAccount(
@@ -180,9 +179,11 @@ export async function handleConnectAccount(
         }
 
         const linkText = buildLinkText(platform!, url, reconnect);
-        const elicitationLine = await tryUrlElicitation(elicitor, extra, platform!, url);
-        log(elicitationLine ? 'link_issued_elicited' : 'link_issued');
-        return textResult(elicitationLine ? `${elicitationLine}\n\n${linkText}` : linkText);
+        const elicited = startUrlElicitation(elicitor, extra, platform!, url);
+        log(elicited ? 'link_issued_elicited' : 'link_issued');
+        return textResult(elicited
+            ? `Your MCP client also shows this link in a dialog; you can open it from there or use it below.\n\n${linkText}`
+            : linkText);
     } catch (error: any) {
         const status = error.response?.status;
         log(`error_${status ?? 'network'}`);

@@ -166,7 +166,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(elicited, false);
         assert.ok(text(result).startsWith('[Connect LinkedIn]'));
     }],
-    ['elicitation: accept adds a line and passes url mode + relatedRequestId', async () => {
+    ['elicitation: sends url mode + relatedRequestId and mentions the dialog', async () => {
         let params: any;
         let options: any;
         const elicitor = {
@@ -178,26 +178,31 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(params.url, CONSENT_URL);
         assert.ok(params.elicitationId);
         assert.equal(options.relatedRequestId, 42);
-        assert.match(text(result), /^The user accepted/);
+        assert.match(text(result), /^Your MCP client also shows this link in a dialog/);
         assert.ok(text(result).includes(CONSENT_URL));
     }],
-    ['elicitation: decline keeps the link', async () => {
+    ['elicitation: the tool result does not wait for the dialog answer', async () => {
+        // Regression: clients time out tool calls after ~60 s, and MCP Inspector answers the
+        // dialog only after the user has finished the platform consent.
         const elicitor = {
             getClientCapabilities: () => ({ elicitation: { url: {} } }),
-            elicitInput: async () => ({ action: 'decline' }),
+            elicitInput: () => new Promise(() => { /* never answered */ }),
         } as unknown as UrlElicitor;
-        const result = await handleConnectAccount({ platform: 'LINKEDIN' }, {}, elicitor);
-        assert.match(text(result), /^The user declined/);
-        assert.ok(text(result).includes(CONSENT_URL));
+        const outcome = await Promise.race([
+            handleConnectAccount({ platform: 'LINKEDIN' }, {}, elicitor).then(() => 'returned'),
+            new Promise((resolve) => setTimeout(() => resolve('blocked'), 200)),
+        ]);
+        assert.equal(outcome, 'returned');
     }],
-    ['elicitation: thrown error falls back to text only', async () => {
+    ['elicitation: a rejected dialog request does not affect the result', async () => {
         const elicitor = {
             getClientCapabilities: () => ({ elicitation: { url: {} } }),
             elicitInput: async () => { throw new Error('Request timed out'); },
         } as unknown as UrlElicitor;
         const result = await handleConnectAccount({ platform: 'LINKEDIN' }, {}, elicitor);
+        await new Promise((resolve) => setImmediate(resolve)); // let the rejection be handled
         assert.equal(result.isError, undefined);
-        assert.ok(text(result).startsWith('[Connect LinkedIn]'));
+        assert.ok(text(result).includes(CONSENT_URL));
     }],
 ];
 
