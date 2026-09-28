@@ -1,12 +1,13 @@
 {
   "name": "mcp-server-postpulse",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for PostPulse — schedule social media posts, upload media, and manage accounts across Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, X (Twitter), Bluesky, and Telegram.",
   "main": "build/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node build/index.js",
-    "dev": "npm run build && node build/index.js"
+    "dev": "npm run build && node build/index.js",
+    "test": "ts-node test/test_connect_account.ts && ts-node test/test_list_accounts.ts"
   },
   "repository": {
     "type": "git",

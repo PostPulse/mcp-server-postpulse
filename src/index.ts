@@ -24,6 +24,7 @@ import { listAccountsTool, handleListAccounts } from './tools/list_accounts';
 import { listChatsTool, handleListChats } from './tools/list_chats';
 import { uploadMediaTool, handleUploadMedia } from './tools/upload_media';
 import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
+import { connectAccountTool, handleConnectAccount } from './tools/connect_account';
 
 // Import resources
 import { listAccountsResource, handleListAccountsResource } from './resources/accounts';
@@ -39,12 +40,13 @@ function createMcpServer() {
     const server = new McpServer(
         {
             name: 'mcp-server-postpulse',
-            version: '1.0.0',
+            version: '1.1.0',
         },
         {
             instructions: `You are connected to the PostPulse MCP Server, which lets you manage social media accounts and schedule posts across multiple platforms.
 
 Typical workflow:
+0. If list_accounts returns no account for the platform the user wants, call connect_account to connect one first.
 1. Call list_accounts to discover the user's connected social media accounts and their IDs.
 2. If the user wants to post media, call upload_media first to upload the image or video. Use the returned media key in the next step.
 3. Call schedule_post with the account ID, platform, content, optional media keys, and a scheduled time in ISO-8601 format.
@@ -55,7 +57,14 @@ Important notes:
 - For Instagram and Facebook, you can set publicationType to FEED, REEL, or STORY (defaults to FEED).
 - For YouTube and TikTok, provide a title for the video.
 - For Telegram and Facebook, you MUST first call list_chats to get the publishing destination (channel/chat ID or Page ID), then pass it as telegramChannelId or facebookPageId in schedule_post. list_chats only works for TELEGRAM and FACEBOOK platforms.
-- upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array.`,
+- upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array.
+
+Connecting accounts:
+- Signing in to this server creates the PostPulse account, so a new user starts with no social accounts. An empty list_accounts result is normal, not an error.
+- If list_accounts is empty or lacks the platform the user wants, offer connect_account with that platform. It returns a link: show it to the user and wait until they say they are done.
+- Never claim an account is connected before list_accounts shows it. If it does not appear, ask the user what the browser page said (for example an account limit or "already used" message) and, if needed, get a fresh link.
+- An account with needsReauthorization: true must be reconnected with connect_account(accountId) before posting to it.
+- Telegram cannot be connected from the chat: connect_account returns instructions for the PostPulse website instead of a link.`,
         },
     );
 
@@ -120,6 +129,19 @@ Important notes:
         },
     }, handleSchedulePost);
 
+    server.registerTool(connectAccountTool.name, {
+        title: 'Connect Social Account',
+        description: connectAccountTool.description,
+        inputSchema: connectAccountTool.inputSchema,
+        annotations: {
+            title: 'Connect Social Account',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: false,
+            openWorldHint: true,
+        },
+    }, (args, extra) => handleConnectAccount(args, extra, server.server));
+
     // Prompts
     server.registerPrompt('schedule-post', {
         title: 'Schedule a Social Media Post',
@@ -139,10 +161,36 @@ Important notes:
                     text: `Help me schedule a social media post ${platform}.${content}
 
 Steps:
-1. Call list_accounts to find my connected accounts.
+1. Call list_accounts to find my connected accounts. If there is no account for the platform, call connect_account, show me the link and wait for me to finish, then call list_accounts again.
 2. If the platform is FACEBOOK or TELEGRAM, call list_chats to get the publishing destination (Page or Channel).
 3. If I need to attach media, call upload_media with the image/video URL first.
 4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
+                },
+            }],
+        };
+    });
+
+    server.registerPrompt('connect-account', {
+        title: 'Connect a Social Media Account',
+        description: 'Guide through connecting a social media account to PostPulse from the chat: get a secure link, approve access in the browser, then confirm the account.',
+        argsSchema: {
+            platform: z.string().optional().describe('Platform to connect (e.g. INSTAGRAM, FACEBOOK, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER, BLUE_SKY, TELEGRAM)'),
+        },
+    }, async (args) => {
+        const platform = args.platform ? ` on ${args.platform}` : '';
+        return {
+            messages: [{
+                role: 'user',
+                content: {
+                    type: 'text',
+                    text: `Help me connect my social media account${platform} to PostPulse.
+
+Steps:
+1. Call list_accounts to see what is already connected.${args.platform ? '' : ' Ask me which platform to connect if it is not clear.'}
+2. Call connect_account with the platform (or with accountId if an existing account has needsReauthorization: true).
+3. Show me the link and wait until I say I am done.
+4. Call list_accounts again to confirm the account is connected.
+5. For FACEBOOK, also call list_chats to show the Pages I can post to.`,
                 },
             }],
         };
@@ -251,7 +299,7 @@ app.get('/.well-known/mcp/server-card.json', (_req, res) => {
     res.json({
         serverInfo: {
             name: 'mcp-server-postpulse',
-            version: '1.0.0',
+            version: '1.1.0',
         },
         authentication: {
             required: true,

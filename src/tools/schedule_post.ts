@@ -3,7 +3,7 @@ import { createApiClient } from '../api/client';
 
 export const schedulePostTool = {
     name: 'schedule_post',
-    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts, a platform identifier, and a scheduledTime in ISO-8601 format. For Facebook and Telegram, you MUST first call list_chats to get the publishing destination (Page ID or Channel ID) and pass it as facebookPageId or telegramChannelId respectively. Optionally attach media from upload_media via mediaPaths, set publication type, video title, or topic tag depending on the platform.',
+    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts (if the user has no account for the platform, use connect_account first), a platform identifier, and a scheduledTime in ISO-8601 format. For Facebook and Telegram, you MUST first call list_chats to get the publishing destination (Page ID or Channel ID) and pass it as facebookPageId or telegramChannelId respectively. Optionally attach media from upload_media via mediaPaths, set publication type, video title, or topic tag depending on the platform.',
     inputSchema: z.object({
         accountId: z.coerce.number().describe('The account ID from list_accounts'),
         platform: z.string().describe('Platform name (e.g. INSTAGRAM, FACEBOOK, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER)'),
