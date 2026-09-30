@@ -1,9 +1,10 @@
 import { createApiClient } from '../api/client';
+import { ApiAccount, toAccountSummary } from '../api/accounts';
 
 export const listAccountsResource = {
     uri: 'postpulse://accounts',
     name: 'Social Media Accounts',
-    description: 'A list of all connected social media accounts (Instagram, Facebook, Telegram, etc.)',
+    description: 'A list of all connected social media accounts (Instagram, Facebook, Telegram, etc.) with id, platform, username, name and needsReauthorization (true means the account must be reconnected with connect_account before posting). Empty for a new user.',
 };
 
 export async function handleListAccountsResource(_uri: URL, extra: any) {
@@ -12,13 +13,8 @@ export async function handleListAccountsResource(_uri: URL, extra: any) {
     const client = createApiClient(token, clientId);
 
     try {
-        const response = await client.get('/v1/accounts');
-        const accounts = response.data.map((acc: any) => ({
-            id: acc.id,
-            platform: acc.platform,
-            username: acc.accountUsername,
-            name: acc.accountName,
-        }));
+        const response = await client.get<ApiAccount[]>('/v1/accounts');
+        const accounts = response.data.map(toAccountSummary);
 
         return {
             contents: [{

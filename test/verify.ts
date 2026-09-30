@@ -5,6 +5,7 @@ import { handleListAccountsResource } from '../src/resources/accounts';
 import { handleListChats } from '../src/tools/list_chats';
 import { handleUploadMedia } from '../src/tools/upload_media';
 import { handleSchedulePost } from '../src/tools/schedule_post';
+import { handleConnectAccount } from '../src/tools/connect_account';
 
 dotenv.config();
 
@@ -45,6 +46,23 @@ async function runVerification() {
     }
 
     console.log('✅ Success: Resource fetched');
+
+    console.log('\n--- 1b. Testing connect_account (LINKEDIN) ---');
+    // The link is a bearer capability: print only whether one was returned, never the URL itself.
+    // It is not opened, so the single-use state simply expires on the backend.
+    const connectResult = await handleConnectAccount({ platform: 'LINKEDIN' }, {
+        authInfo: {
+            token: process.env.POSTPULSE_ACCESS_TOKEN || '',
+            clientId: testClientId
+        }
+    });
+    if (connectResult.isError) {
+        console.error('❌ Error:', connectResult.content[0].text);
+    } else {
+        const hasUrl = /https:\/\/\S+/.test(connectResult.content[0].text);
+        console.log(hasUrl ? '✅ Success: connect link returned (not printed)' : '❌ No URL in the connect_account result');
+    }
+
     const accounts = JSON.parse(resourceResult.contents[0].text as string);
     if (accounts.length === 0) {
         console.log('⚠️ No accounts found. Cannot proceed with further tests.');

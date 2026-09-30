@@ -9,6 +9,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 - **Multi-platform posting** — Schedule posts to 9 social media platforms from a single interface
 - **Media management** — Upload images and videos via URL or binary data for use in posts
 - **Account management** — List and manage all connected social media accounts
+- **Connect social accounts from the chat** — Get a secure link to connect or reconnect an account without opening the PostPulse app
 - **OAuth 2.0 authentication** — Secure access via Auth0-based token verification
 - **Streamable HTTP transport** — Modern MCP transport protocol for reliable communication
 
@@ -101,7 +102,25 @@ List all connected social media accounts with their IDs, platforms, usernames, a
 
 **Parameters:** None
 
-**Returns:** JSON array of account objects (`id`, `platform`, `username`, `name`).
+**Returns:** JSON array of account objects (`id`, `platform`, `username`, `name`, `needsReauthorization`). A new user has no accounts yet: the result is `[]` plus a hint to use `connect_account`. Accounts with `needsReauthorization: true` must be reconnected with `connect_account` before posting; the result names them in a second text block.
+
+### `connect_account`
+
+Get a secure link that connects (or reconnects) a social media account to PostPulse directly from the chat. The user opens the link in any browser, approves access on the platform and sees "Account connected". The tool does not wait for completion: once the user says they are done, call `list_accounts` to confirm the account.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `platform` | string | One of the two | `INSTAGRAM`, `FACEBOOK`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER`, `BLUE_SKY`, `TELEGRAM` |
+| `accountId` | number | One of the two | Reconnect an existing account (from `list_accounts`, usually one with `needsReauthorization: true`). The platform is taken from the account |
+
+**Behaviour:**
+- For a new connection the tool first checks that the user may add an account (plan or credits). If not, it returns the reason and a link to billing.
+- The link is single-use, tied to the user's PostPulse account and valid for **2 hours** (Bluesky: about **5 minutes**). It must not be shared: whoever completes it attaches their social account to this PostPulse account.
+- **Telegram** cannot be connected with a link: the tool returns instructions to connect it on https://post-pulse.com/app/accounts instead.
+- For Facebook and Telegram, call `list_chats` afterwards to pick the Page or channel.
+- Clients that support URL-mode elicitation additionally get a native "open this link" dialog; the link is always in the text result as well.
+- Errors that happen in the browser (account limit, account already used by another PostPulse user, expired link) are shown on the page, not returned by the tool.
 
 ### `list_chats`
 
@@ -153,11 +172,13 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 
 ### `postpulse://accounts`
 
-An MCP resource providing the list of all connected social media accounts. Returns the same data as the `list_accounts` tool in JSON format.
+An MCP resource providing the list of all connected social media accounts. Returns the same data as the `list_accounts` tool in JSON format, including `needsReauthorization`.
 
 ## Authentication
 
 This server uses OAuth 2.0 with [Auth0](https://auth0.com). OAuth metadata is discoverable at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`.
+
+No existing PostPulse account is needed: signing in through the MCP client (with Google or a passwordless email code) creates the PostPulse account on first use. The user then connects social accounts with `connect_account`.
 
 ### Dynamic Client Registration (DCR)
 
@@ -186,8 +207,22 @@ Every response carries `X-Robots-Tag: noindex, nofollow` so search engines never
 A typical interaction with the PostPulse MCP server:
 
 1. **List accounts** to find connected social media profiles
-2. **Upload media** (optional) to prepare images or videos
-3. **Schedule a post** with content, media, and a future publish time
+2. **Connect an account** (if the platform is missing) with `connect_account`
+3. **Upload media** (optional) to prepare images or videos
+4. **Schedule a post** with content, media, and a future publish time
 
 ```
 User: "Schedule an Instagram reel for tomorrow at 9am with the video at https://example.com/video.mp4 and caption 'Check this out!'"
+```
+
+### First run (new user)
+
+```
+User:      "Post 'Hello LinkedIn!' to my LinkedIn tomorrow at 10:00 UTC"
+Assistant: list_accounts → [] ("No social accounts are connected yet")
+           connect_account(platform: LINKEDIN) → link
+           "Open this link and approve access on LinkedIn, then tell me when you are done."
+User:      "Done"
+Assistant: list_accounts → [{ id: 123, platform: LINKEDIN, ... }]
+           schedule_post(accountId: 123, platform: LINKEDIN, content: "Hello LinkedIn!", scheduledTime: ...)
+```
