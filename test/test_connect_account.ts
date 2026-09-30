@@ -1,7 +1,7 @@
 import './setup_env';
 import assert from 'node:assert/strict';
 import * as clientModule from '../src/api/client';
-import { handleConnectAccount, connectAccountDeps, UrlElicitor } from '../src/tools/connect_account';
+import { handleConnectAccount, UrlElicitor, CONNECTABLE_PLATFORMS, connectAccountTool } from '../src/tools/connect_account';
 
 // ─── Manual mock of the API client ──────────────────────────────────────────
 
@@ -24,9 +24,6 @@ let postHandler: (url: string, body: any) => any = () => ({ data: { url: CONSENT
     },
 });
 
-let sleeps: number[] = [];
-connectAccountDeps.sleep = async (ms: number) => { sleeps.push(ms); };
-
 const ACCOUNTS = [
     { id: 7, platform: 'LINKEDIN', accountUsername: 'jane', accountDisplayName: 'Jane', needsReauthorization: true },
     { id: 8, platform: 'TELEGRAM', accountUsername: 'jane_tg', accountDisplayName: 'Jane TG', needsReauthorization: false },
@@ -41,7 +38,6 @@ function httpError(status: number, url: string, data: any) {
 
 function reset() {
     calls = [];
-    sleeps = [];
     getHandler = (url) => {
         if (url === '/v1/accounts/can-connect') return { data: { allowed: true } };
         if (url === '/v1/accounts') return { data: ACCOUNTS };
@@ -82,26 +78,19 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.match(text(result), /maximum number of accounts/);
         assert.match(text(result), /post-pulse\.com\/app\/billing/);
         assert.equal(authorizeCalls().length, 0);
-        assert.deepEqual(sleeps, []);
     }],
-    ['can-connect "No active subscription found", then true on retry: success', async () => {
-        let n = 0;
-        getHandler = () => (++n === 1
-            ? { data: { allowed: false, reason: 'No active subscription found' } }
-            : { data: { allowed: true } });
-        const result = await handleConnectAccount({ platform: 'TIKTOK' }, {});
-        assert.equal(result.isError, undefined);
-        assert.deepEqual(sleeps, [2000]);
-        assert.equal(calls.filter((c) => c.url === '/v1/accounts/can-connect').length, 2);
-        assert.equal(authorizeCalls().length, 1);
-        assert.match(text(result), /third-party apps/);
-    }],
-    ['can-connect "No active subscription found" twice: error after one retry', async () => {
+    ['can-connect false: a single check, no retry', async () => {
         getHandler = () => ({ data: { allowed: false, reason: 'No active subscription found' } });
         const result = await handleConnectAccount({ platform: 'TIKTOK' }, {});
         assert.equal(result.isError, true);
-        assert.equal(calls.filter((c) => c.url === '/v1/accounts/can-connect').length, 2);
+        assert.equal(calls.filter((c) => c.url === '/v1/accounts/can-connect').length, 1);
         assert.equal(authorizeCalls().length, 0);
+    }],
+    ['platform description lists every connectable platform', async () => {
+        const description = connectAccountTool.inputSchema.shape.platform.description ?? '';
+        for (const platform of CONNECTABLE_PLATFORMS) {
+            assert.ok(description.includes(platform), `${platform} missing from the description`);
+        }
     }],
     ['reconnect with accountId only: platform from /v1/accounts, body {platform, accountId}', async () => {
         const result = await handleConnectAccount({ accountId: 7 }, {});
@@ -132,6 +121,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         const result = await handleConnectAccount({ accountId: 8 }, {});
         assert.equal(result.isError, undefined);
         assert.match(text(result), /cannot be connected with a link/);
+        assert.match(text(result), /list_chats with platform TELEGRAM/);
         assert.equal(authorizeCalls().length, 0);
     }],
     ['neither platform nor accountId: error', async () => {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createApiClient } from '../api/client';
-import { toAccountSummary } from '../api/accounts';
+import { ApiAccount, toAccountSummary } from '../api/accounts';
 
 export const listAccountsTool = {
     name: 'list_accounts',
@@ -13,16 +13,16 @@ export async function handleListAccounts(_args: any, extra: any) {
     const clientId = (extra as any)?.authInfo?.clientId || '';
     const client = createApiClient(token, clientId);
     try {
-        const response = await client.get('/v1/accounts');
+        const response = await client.get<ApiAccount[]>('/v1/accounts');
         const accounts = response.data.map(toAccountSummary);
         const content = [{ type: 'text' as const, text: JSON.stringify(accounts, null, 2) }];
 
         if (accounts.length === 0) {
             content.push({ type: 'text' as const, text: 'No social accounts are connected yet. Use connect_account to connect one.' });
         }
-        const stale = accounts.filter((acc: any) => acc.needsReauthorization);
+        const stale = accounts.filter((acc) => acc.needsReauthorization);
         if (stale.length > 0) {
-            const names = stale.map((acc: any) => `${acc.id} (${acc.platform}${acc.username ? ` @${acc.username}` : ''})`).join(', ');
+            const names = stale.map((acc) => `${acc.id} (${acc.platform}${acc.username ? ` @${acc.username}` : ''})`).join(', ');
             content.push({ type: 'text' as const, text: `These accounts need reauthorization before posting: ${names}. Use connect_account with their accountId to reconnect them.` });
         }
         return { content };

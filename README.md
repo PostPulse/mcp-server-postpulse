@@ -118,7 +118,7 @@ Get a secure link that connects (or reconnects) a social media account to PostPu
 - For a new connection the tool first checks that the user may add an account (plan or credits). If not, it returns the reason and a link to billing.
 - The link is single-use, tied to the user's PostPulse account and valid for **2 hours** (Bluesky: about **5 minutes**). It must not be shared: whoever completes it attaches their social account to this PostPulse account.
 - **Telegram** cannot be connected with a link: the tool returns instructions to connect it on https://post-pulse.com/app/accounts instead.
-- For Facebook, call `list_chats` afterwards to pick the Page.
+- For Facebook and Telegram, call `list_chats` afterwards to pick the Page or channel.
 - Clients that support URL-mode elicitation additionally get a native "open this link" dialog; the link is always in the text result as well.
 - Errors that happen in the browser (account limit, account already used by another PostPulse user, expired link) are shown on the page, not returned by the tool.
 

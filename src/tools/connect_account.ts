@@ -2,17 +2,22 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { createApiClient } from '../api/client';
+import { ApiAccount } from '../api/accounts';
 import { logger } from '../logger';
 
 /**
- * Platforms a new account can be connected for. Values are the backend `Platform` enum names.
- * PINTEREST is left out until schedule_post can post to it; REDDIT and GOOGLE_BUSINESS are added
- * by their own plans. TELEGRAM has no link-based flow and only returns guidance.
+ * Platforms a new account can be connected for: those schedule_post can post to.
+ * TELEGRAM has no link-based flow and only returns guidance.
+ * Tool and prompt descriptions are built from this list, so it is the only place to extend.
  */
 export const CONNECTABLE_PLATFORMS = [
     'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'TIKTOK', 'THREADS', 'LINKEDIN', 'X_TWITTER', 'BLUE_SKY', 'TELEGRAM',
 ] as const;
 
+/** Comma-separated CONNECTABLE_PLATFORMS for tool and prompt descriptions. */
+export const CONNECTABLE_PLATFORMS_TEXT = CONNECTABLE_PLATFORMS.join(', ');
+
+/** Display names; an account being reconnected may be on a platform outside CONNECTABLE_PLATFORMS. */
 const PLATFORM_NAMES: Record<string, string> = {
     INSTAGRAM: 'Instagram',
     FACEBOOK: 'Facebook',
@@ -30,27 +35,18 @@ const PLATFORM_NOTES: Record<string, string> = {
     INSTAGRAM: 'Instagram: the account must be a Business or Creator account.',
     FACEBOOK: 'Facebook: sign in as a Facebook user who manages the Page you want to post to. After connecting, call list_chats with platform FACEBOOK to pick the Page.',
     YOUTUBE: 'YouTube: the Google account must have a YouTube channel.',
-    TIKTOK: 'TikTok: the account must allow posting from third-party apps.',
 };
 
 const TELEGRAM_GUIDANCE = `Telegram cannot be connected with a link from the chat. To connect it:
 1. Open https://post-pulse.com/app/accounts and sign in with the same login you use for this chat (Google or email).
 2. Connect Telegram there.
 3. Add the PostPulse bot to the channel or group you want to post to.
-4. Come back and tell me, and I will check with list_accounts.`;
+4. Come back and tell me, and I will check with list_accounts and list_chats with platform TELEGRAM.`;
 
 const BILLING_URL = 'https://post-pulse.com/app/billing';
 
-/** Reason returned by `GET /v1/accounts/can-connect` before the signup bonus credits land. */
-const NO_SUBSCRIPTION_REASON = 'No active subscription found';
-const SIGNUP_BONUS_RETRY_MS = 2000;
 /** How long the server keeps the (not awaited) URL elicitation pending; the tool result does not wait for it. */
 const ELICITATION_TIMEOUT_MS = 10 * 60_000;
-
-/** Indirection so tests can stub the retry delay. */
-export const connectAccountDeps = {
-    sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
-};
 
 /** The part of the low-level MCP server the tool needs for the optional URL elicitation. */
 export type UrlElicitor = Pick<Server, 'getClientCapabilities' | 'elicitInput'>;
@@ -59,7 +55,7 @@ export const connectAccountTool = {
     name: 'connect_account',
     description: 'Get a secure link that lets the user connect (or reconnect) a social media account to PostPulse directly from the chat. Show the link to the user; they open it in a browser and approve access on the platform. The tool does not wait: after the user says they are done, call list_accounts to confirm the new account. Use it when list_accounts returns no account for the platform the user wants, or to reconnect an account whose needsReauthorization is true. Pass either platform (new connection) or accountId (reconnect). Telegram is connected on the PostPulse website; for it the tool returns instructions instead of a link.',
     inputSchema: z.object({
-        platform: z.enum(CONNECTABLE_PLATFORMS).optional().describe('Platform to connect: INSTAGRAM, FACEBOOK, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER, BLUE_SKY or TELEGRAM. Not needed when accountId is given.'),
+        platform: z.enum(CONNECTABLE_PLATFORMS).optional().describe(`Platform to connect: ${CONNECTABLE_PLATFORMS_TEXT}. Not needed when accountId is given.`),
         accountId: z.coerce.number().optional().describe('Only to reconnect an existing account whose needsReauthorization is true (from list_accounts). The platform is taken from the account.'),
     }),
 };
@@ -140,8 +136,8 @@ export async function handleConnectAccount(
 
     try {
         if (reconnect) {
-            const response = await client.get('/v1/accounts');
-            const account = (response.data as any[]).find((acc) => Number(acc.id) === accountId);
+            const response = await client.get<ApiAccount[]>('/v1/accounts');
+            const account = response.data.find((acc) => Number(acc.id) === accountId);
             if (!account) {
                 log('account_not_found');
                 return textResult(`Error: account ${accountId} not found. Call list_accounts to get valid account IDs.`, true);
@@ -150,7 +146,7 @@ export async function handleConnectAccount(
                 log('platform_mismatch');
                 return textResult(`Error: account ${accountId} is a ${account.platform} account, not ${platform}. Omit platform or pass ${account.platform}.`, true);
             }
-            platform = account.platform as string;
+            platform = account.platform;
         }
 
         if (platform === 'TELEGRAM') {
@@ -159,12 +155,7 @@ export async function handleConnectAccount(
         }
 
         if (!reconnect) {
-            let eligibility = (await client.get('/v1/accounts/can-connect')).data;
-            if (!eligibility?.allowed && eligibility?.reason === NO_SUBSCRIPTION_REASON) {
-                // A brand-new user gets the signup bonus credits asynchronously; give it one more chance.
-                await connectAccountDeps.sleep(SIGNUP_BONUS_RETRY_MS);
-                eligibility = (await client.get('/v1/accounts/can-connect')).data;
-            }
+            const eligibility = (await client.get<{ allowed?: boolean; reason?: string }>('/v1/accounts/can-connect')).data;
             if (!eligibility?.allowed) {
                 log('not_allowed');
                 return textResult(`Error: a new account cannot be connected right now: ${eligibility?.reason || 'not allowed'}. Check your plan or credits at ${BILLING_URL}.`, true);
@@ -172,7 +163,7 @@ export async function handleConnectAccount(
         }
 
         const body = reconnect ? { platform, accountId } : { platform };
-        const url: string | undefined = (await client.post('/v1/accounts/oauth/authorize-url', body)).data?.url;
+        const url = (await client.post<{ url?: string }>('/v1/accounts/oauth/authorize-url', body)).data?.url;
         if (!url) {
             log('empty_url');
             return textResult('Error: PostPulse did not return a connection link. Try again later.', true);

@@ -18,13 +18,14 @@ import { config } from './config';
 import { logger } from './logger';
 import { tokenVerifier } from './auth/token_verifier';
 import { RedisEventStore } from './store/redis_event_store';
+import { SERVER_VERSION } from './version';
 
 // Import tools
 import { listAccountsTool, handleListAccounts } from './tools/list_accounts';
 import { listChatsTool, handleListChats } from './tools/list_chats';
 import { uploadMediaTool, handleUploadMedia } from './tools/upload_media';
 import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
-import { connectAccountTool, handleConnectAccount } from './tools/connect_account';
+import { connectAccountTool, handleConnectAccount, CONNECTABLE_PLATFORMS_TEXT } from './tools/connect_account';
 
 // Import resources
 import { listAccountsResource, handleListAccountsResource } from './resources/accounts';
@@ -40,16 +41,16 @@ function createMcpServer() {
     const server = new McpServer(
         {
             name: 'mcp-server-postpulse',
-            version: '1.1.0',
+            version: SERVER_VERSION,
         },
         {
             instructions: `You are connected to the PostPulse MCP Server, which lets you manage social media accounts and schedule posts across multiple platforms.
 
 Typical workflow:
-0. If list_accounts returns no account for the platform the user wants, call connect_account to connect one first.
 1. Call list_accounts to discover the user's connected social media accounts and their IDs.
-2. If the user wants to post media, call upload_media first to upload the image or video. Use the returned media key in the next step.
-3. Call schedule_post with the account ID, platform, content, optional media keys, and a scheduled time in ISO-8601 format.
+2. If list_accounts returns no account for the platform the user wants, call connect_account to connect one, then call list_accounts again.
+3. If the user wants to post media, call upload_media first to upload the image or video. Use the returned media key in the next step.
+4. Call schedule_post with the account ID, platform, content, optional media keys, and a scheduled time in ISO-8601 format.
 
 Important notes:
 - Always call list_accounts before schedule_post so you have a valid accountId.
@@ -174,7 +175,7 @@ Steps:
         title: 'Connect a Social Media Account',
         description: 'Guide through connecting a social media account to PostPulse from the chat: get a secure link, approve access in the browser, then confirm the account.',
         argsSchema: {
-            platform: z.string().optional().describe('Platform to connect (e.g. INSTAGRAM, FACEBOOK, YOUTUBE, TIKTOK, THREADS, LINKEDIN, X_TWITTER, BLUE_SKY, TELEGRAM)'),
+            platform: z.string().optional().describe(`Platform to connect: ${CONNECTABLE_PLATFORMS_TEXT}`),
         },
     }, async (args) => {
         const platform = args.platform ? ` on ${args.platform}` : '';
@@ -190,7 +191,7 @@ Steps:
 2. Call connect_account with the platform (or with accountId if an existing account has needsReauthorization: true).
 3. Show me the link and wait until I say I am done.
 4. Call list_accounts again to confirm the account is connected.
-5. For FACEBOOK, also call list_chats to show the Pages I can post to.`,
+5. For FACEBOOK or TELEGRAM, also call list_chats to show the Pages or channels I can post to.`,
                 },
             }],
         };
@@ -299,7 +300,7 @@ app.get('/.well-known/mcp/server-card.json', (_req, res) => {
     res.json({
         serverInfo: {
             name: 'mcp-server-postpulse',
-            version: '1.1.0',
+            version: SERVER_VERSION,
         },
         authentication: {
             required: true,

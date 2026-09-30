@@ -1,5 +1,5 @@
 import { createApiClient } from '../api/client';
-import { toAccountSummary } from '../api/accounts';
+import { ApiAccount, toAccountSummary } from '../api/accounts';
 
 export const listAccountsResource = {
     uri: 'postpulse://accounts',
@@ -13,7 +13,7 @@ export async function handleListAccountsResource(_uri: URL, extra: any) {
     const client = createApiClient(token, clientId);
 
     try {
-        const response = await client.get('/v1/accounts');
+        const response = await client.get<ApiAccount[]>('/v1/accounts');
         const accounts = response.data.map(toAccountSummary);
 
         return {
