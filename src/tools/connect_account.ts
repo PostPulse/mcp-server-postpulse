@@ -45,6 +45,12 @@ const TELEGRAM_GUIDANCE = `Telegram cannot be connected with a link from the cha
 
 const BILLING_URL = 'https://post-pulse.com/app/billing';
 
+/** Issues a single-use PostPulse page link that starts the platform consent when the user clicks Continue. */
+const CONNECT_LINKS_PATH = '/v1/accounts/connect-links';
+
+/** Tells PostPulse the link comes from an AI chat, so its page ends with "return to your chat". */
+const CONNECT_ORIGIN = 'MCP';
+
 /** How long the server keeps the (not awaited) URL elicitation pending; the tool result does not wait for it. */
 const ELICITATION_TIMEOUT_MS = 10 * 60_000;
 
@@ -53,7 +59,7 @@ export type UrlElicitor = Pick<Server, 'getClientCapabilities' | 'elicitInput'>;
 
 export const connectAccountTool = {
     name: 'connect_account',
-    description: 'Get a secure link that lets the user connect (or reconnect) a social media account to PostPulse directly from the chat. Show the link to the user; they open it in a browser and approve access on the platform. The tool does not wait: after the user says they are done, call list_accounts to confirm the new account. Use it when list_accounts returns no account for the platform the user wants, or to reconnect an account whose needsReauthorization is true. Pass either platform (new connection) or accountId (reconnect). Telegram is connected on the PostPulse website; for it the tool returns instructions instead of a link.',
+    description: 'Get a secure PostPulse link that lets the user connect (or reconnect) a social media account to PostPulse directly from the chat. Show the link to the user; they open it in a browser, check on the PostPulse page which PostPulse account the social account will be attached to, and approve access on the platform. The link is single-use and valid for 24 hours. The tool does not wait: after the user says they are done, call list_accounts to confirm the new account. Use it when list_accounts returns no account for the platform the user wants, or to reconnect an account whose needsReauthorization is true. Pass either platform (new connection) or accountId (reconnect). Telegram is connected on the PostPulse website; for it the tool returns instructions instead of a link.',
     inputSchema: z.object({
         platform: z.enum(CONNECTABLE_PLATFORMS).optional().describe(`Platform to connect: ${CONNECTABLE_PLATFORMS_TEXT}. Not needed when accountId is given.`),
         accountId: z.coerce.number().optional().describe('Only to reconnect an existing account whose needsReauthorization is true (from list_accounts). The platform is taken from the account.'),
@@ -73,15 +79,12 @@ function apiErrorText(error: any): string {
 
 function buildLinkText(platform: string, url: string, reconnect: boolean): string {
     const name = PLATFORM_NAMES[platform] ?? platform;
-    const lifetime = platform === 'BLUE_SKY'
-        ? 'valid for about 5 minutes; if it has expired, ask me for a new one'
-        : 'valid for 2 hours';
     const lines = [
         `[${reconnect ? 'Reconnect' : 'Connect'} ${name}](${url})`,
         url,
         '',
-        `This link is single-use, tied to your PostPulse account and ${lifetime}. Do not share it: whoever completes it attaches their ${name} account to your PostPulse account.`,
-        `Open it in a browser and approve access on ${name}. You will then see "Account connected". If the browser opens the PostPulse app instead, the account is connected too; just close the tab.`,
+        `This link is tied to your PostPulse account, valid for 24 hours and works once; if it has expired or was already used, ask me for a new one. Do not share it: whoever completes it attaches their ${name} account to your PostPulse account.`,
+        `Open it in a browser. The page shows which PostPulse account the ${name} account will be attached to; continue only if it is yours. After approving access on ${name} you will see "Account connected — return to your chat".`,
         'Then tell me, and I will check with list_accounts. If the account does not show up, tell me what the browser page said.',
     ];
     const note = PLATFORM_NOTES[platform];
@@ -106,7 +109,7 @@ function startUrlElicitation(elicitor: UrlElicitor | undefined, extra: any, plat
         mode: 'url',
         elicitationId: randomUUID(),
         url,
-        message: `Open this link to connect ${PLATFORM_NAMES[platform] ?? platform} to your PostPulse account.`,
+        message: `Open this PostPulse page to connect ${PLATFORM_NAMES[platform] ?? platform} to your PostPulse account.`,
     }, { relatedRequestId: extra?.requestId, timeout: ELICITATION_TIMEOUT_MS })
         .then((result) => logger.info({ tool: 'connect_account', platform, action: result.action }, 'URL elicitation answered'))
         .catch((error: any) => logger.warn({ tool: 'connect_account', platform, err: error?.message }, 'URL elicitation failed'));
@@ -162,8 +165,10 @@ export async function handleConnectAccount(
             }
         }
 
-        const body = reconnect ? { platform, accountId } : { platform };
-        const url = (await client.post<{ url?: string }>('/v1/accounts/oauth/authorize-url', body)).data?.url;
+        const body = reconnect
+            ? { platform, accountId, origin: CONNECT_ORIGIN }
+            : { platform, origin: CONNECT_ORIGIN };
+        const url = (await client.post<{ url?: string }>(CONNECT_LINKS_PATH, body)).data?.url;
         if (!url) {
             log('empty_url');
             return textResult('Error: PostPulse did not return a connection link. Try again later.', true);
@@ -181,8 +186,18 @@ export async function handleConnectAccount(
         if (status === 401) {
             return textResult('Error: the PostPulse session has expired. Reconnect the PostPulse MCP server and try again.', true);
         }
-        if (status === 400 && error.config?.url === '/v1/accounts/oauth/authorize-url') {
-            return textResult(`Error: connecting ${PLATFORM_NAMES[platform!] ?? platform} with a link is not supported. ${apiErrorText(error)}`, true);
+        if (error.config?.url === CONNECT_LINKS_PATH) {
+            if (status === 400) {
+                return textResult(`Error: connecting ${PLATFORM_NAMES[platform!] ?? platform} with a link is not supported. ${apiErrorText(error)}`, true);
+            }
+            // Seats are checked again when the link is issued; they may have run out since can-connect.
+            if (status === 403) {
+                const reason = error.response?.data?.error || 'not allowed';
+                return textResult(`Error: a new account cannot be connected right now: ${reason}. Check your plan or credits at ${BILLING_URL}.`, true);
+            }
+            if (status === 429) {
+                return textResult('Error: too many connection links were requested. Wait a few minutes and try again.', true);
+            }
         }
         return textResult(apiErrorText(error), true);
     }
