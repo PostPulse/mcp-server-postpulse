@@ -49,7 +49,7 @@ async function runVerification() {
 
     console.log('\n--- 1b. Testing connect_account (LINKEDIN) ---');
     // The link is a bearer capability: print only whether one was returned, never the URL itself.
-    // It is not opened, so the single-use state simply expires on the backend.
+    // It is not opened, so the single-use link simply expires on the backend.
     const connectResult = await handleConnectAccount({ platform: 'LINKEDIN' }, {
         authInfo: {
             token: process.env.POSTPULSE_ACCESS_TOKEN || '',
@@ -59,8 +59,9 @@ async function runVerification() {
     if (connectResult.isError) {
         console.error('❌ Error:', connectResult.content[0].text);
     } else {
-        const hasUrl = /https:\/\/\S+/.test(connectResult.content[0].text);
-        console.log(hasUrl ? '✅ Success: connect link returned (not printed)' : '❌ No URL in the connect_account result');
+        // post-pulse.com in PROD, dev.post-pulse.com when POSTPULSE_API_URL points at the DEV stage.
+        const hasLink = /https:\/\/(dev\.)?post-pulse\.com\/oauth\/connect\/\S+/.test(connectResult.content[0].text);
+        console.log(hasLink ? '✅ Success: PostPulse connect link returned (not printed)' : '❌ No post-pulse.com/oauth/connect/ link in the connect_account result');
     }
 
     const accounts = JSON.parse(resourceResult.contents[0].text as string);

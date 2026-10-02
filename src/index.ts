@@ -63,7 +63,7 @@ Important notes:
 
 Connecting accounts:
 - Signing in to this server creates the PostPulse account, so a new user starts with no social accounts. An empty list_accounts result is normal, not an error.
-- If list_accounts is empty or lacks the platform the user wants, offer connect_account with that platform. It returns a link: show it to the user and wait until they say they are done.
+- If list_accounts is empty or lacks the platform the user wants, offer connect_account with that platform. It returns a single-use PostPulse link valid for 24 hours: show it to the user and wait until they say they are done. The page shows which PostPulse account the social account will be attached to and ends with "Account connected — return to your chat".
 - Never claim an account is connected before list_accounts shows it. If it does not appear, ask the user what the browser page said (for example an account limit or "already used" message) and, if needed, get a fresh link.
 - An account with needsReauthorization: true must be reconnected with connect_account(accountId) before posting to it.
 - Telegram cannot be connected from the chat: connect_account returns instructions for the PostPulse website instead of a link.`,
@@ -190,7 +190,7 @@ Steps:
 Steps:
 1. Call list_accounts to see what is already connected.${args.platform ? '' : ' Ask me which platform to connect if it is not clear.'}
 2. Call connect_account with the platform (or with accountId if an existing account has needsReauthorization: true).
-3. Show me the link and wait until I say I am done.
+3. Show me the link (single-use, valid for 24 hours) and wait until I say I am done. The page shows which PostPulse account the social account will be attached to and ends with "return to your chat".
 4. Call list_accounts again to confirm the account is connected.
 5. For FACEBOOK or TELEGRAM, also call list_chats to show the Pages or channels I can post to.`,
                 },

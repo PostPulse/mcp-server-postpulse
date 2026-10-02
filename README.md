@@ -107,7 +107,7 @@ List all connected social media accounts with their IDs, platforms, usernames, a
 
 ### `connect_account`
 
-Get a secure link that connects (or reconnects) a social media account to PostPulse directly from the chat. The user opens the link in any browser, approves access on the platform and sees "Account connected". The tool does not wait for completion: once the user says they are done, call `list_accounts` to confirm the account.
+Get a secure PostPulse link that connects (or reconnects) a social media account to PostPulse directly from the chat. The user opens the link in any browser and lands on a PostPulse page that shows which PostPulse account (masked email) the social account will be attached to. After **Continue** and approving access on the platform, the page says "Account connected — return to your chat". The tool does not wait for completion: once the user says they are done, call `list_accounts` to confirm the account.
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -117,7 +117,8 @@ Get a secure link that connects (or reconnects) a social media account to PostPu
 
 **Behaviour:**
 - For a new connection the tool first checks that the user may add an account (plan or credits). If not, it returns the reason and a link to billing.
-- The link is single-use, tied to the user's PostPulse account and valid for **2 hours** (Bluesky: about **5 minutes**). It must not be shared: whoever completes it attaches their social account to this PostPulse account.
+- The link is single-use, tied to the user's PostPulse account and valid for **24 hours**; the platform consent starts only when the user clicks Continue on the page. It must not be shared: whoever completes it attaches their social account to this PostPulse account.
+- If too many links are requested in a short time, the tool asks to wait a few minutes and try again.
 - **Telegram** cannot be connected with a link: the tool returns instructions to connect it on https://post-pulse.com/app/accounts instead.
 - For Facebook and Telegram, call `list_chats` afterwards to pick the Page or channel.
 - Clients that support URL-mode elicitation additionally get a native "open this link" dialog; the link is always in the text result as well.
@@ -226,7 +227,7 @@ User: "Schedule an Instagram reel for tomorrow at 9am with the video at https://
 User:      "Post 'Hello LinkedIn!' to my LinkedIn tomorrow at 10:00 UTC"
 Assistant: list_accounts → [] ("No social accounts are connected yet")
            connect_account(platform: LINKEDIN) → link
-           "Open this link and approve access on LinkedIn, then tell me when you are done."
+           "Open this link, check the PostPulse account on the page, approve access on LinkedIn, then tell me when you are done."
 User:      "Done"
 Assistant: list_accounts → [{ id: 123, platform: LINKEDIN, ... }]
            schedule_post(accountId: 123, platform: LINKEDIN, content: "Hello LinkedIn!", scheduledTime: ...)
