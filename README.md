@@ -2,11 +2,11 @@
 
 [![smithery badge](https://smithery.ai/badge/post-pulse/mcp-server)](https://smithery.ai/servers/post-pulse/mcp-server)
 
-An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse](https://post-pulse.com) — a social media management platform. Schedule posts, upload media, and manage accounts across Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, X (Twitter), Bluesky, and Telegram — all through natural language.
+An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse](https://post-pulse.com) — a social media management platform. Schedule posts, upload media, and manage accounts across Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, Pinterest, X (Twitter), Bluesky, and Telegram — all through natural language.
 
 ## Features
 
-- **Multi-platform posting** — Schedule posts to 9 social media platforms from a single interface
+- **Multi-platform posting** — Schedule posts to 10 social media platforms from a single interface
 - **Media management** — Upload images and videos via URL or binary data for use in posts
 - **Account management** — List and manage all connected social media accounts
 - **Connect social accounts from the chat** — Get a secure link to connect or reconnect an account without opening the PostPulse app
@@ -23,6 +23,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 | **TikTok** | Video, Carousel | Image, Video | Account |
 | **Threads** | Post | Image, Video | Account |
 | **LinkedIn** | Post | Image, Video | Personal Account |
+| **Pinterest** | Pin | Image, Video, Carousel (2–5 images) | Board |
 | **X (Twitter)** | Post | Image, Video | Account |
 | **Bluesky** | Post | Image | Account |
 | **Telegram** | Message | Text, Image, Video | Channel/Chat |
@@ -111,7 +112,7 @@ Get a secure PostPulse link that connects (or reconnects) a social media account
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `platform` | string | One of the two | `INSTAGRAM`, `FACEBOOK`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER`, `BLUE_SKY`, `TELEGRAM` |
+| `platform` | string | One of the two | `INSTAGRAM`, `FACEBOOK`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER`, `BLUE_SKY`, `TELEGRAM`, `PINTEREST` |
 | `accountId` | number | One of the two | Reconnect an existing account (from `list_accounts`, usually one with `needsReauthorization: true`). The platform is taken from the account |
 
 **Behaviour:**
@@ -125,15 +126,15 @@ Get a secure PostPulse link that connects (or reconnects) a social media account
 
 ### `list_chats`
 
-List publishing destinations for accounts that have sub-destinations. Facebook accounts publish to **Pages**, and Telegram accounts publish to **channels or chats**. Call this before scheduling posts to either platform — use the returned `id` as the `facebookPageId` or `telegramChannelId` in `schedule_post`.
+List publishing destinations for accounts that have sub-destinations. Facebook accounts publish to **Pages**, Telegram accounts publish to **channels or chats**, and Pinterest accounts publish to **boards**. Call this before scheduling posts to these platforms — use the returned `id` as the `facebookPageId`, `telegramChannelId` or `pinterestBoardId` in `schedule_post`.
 
-Only supports `FACEBOOK` and `TELEGRAM`. Other platforms do not have sub-destinations and should be posted to directly.
+Only supports `FACEBOOK`, `TELEGRAM` and `PINTEREST`. Other platforms do not have sub-destinations and should be posted to directly.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `accountId` | number | Yes | Account ID obtained from `list_accounts` |
-| `platform` | string | Yes | `FACEBOOK` or `TELEGRAM` |
+| `platform` | string | Yes | `FACEBOOK`, `TELEGRAM` or `PINTEREST` |
 
 **Returns:** JSON array of destination objects (`id`, `title`, `type`, `platform`).
 
@@ -159,15 +160,19 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `accountId` | number | Yes | Account ID from `list_accounts` |
-| `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER`, `BLUE_SKY` |
+| `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `PINTEREST`, `X_TWITTER`, `BLUE_SKY` |
 | `content` | string | No | Post text/caption |
 | `mediaPaths` | string[] | No | Media keys returned by `upload_media` |
 | `scheduledTime` | string | Yes | ISO-8601 timestamp (e.g., `2025-01-15T10:00:00Z`) |
 | `facebookPageId` | string | **Yes** (Facebook) | Facebook Page ID from `list_chats`. Required when platform is `FACEBOOK` |
 | `telegramChannelId` | string | **Yes** (Telegram) | Telegram Channel/Chat ID from `list_chats`. Required when platform is `TELEGRAM` |
-| `publicationType` | string | No | `FEED`, `REEL`, or `STORY` (Instagram/Facebook, defaults to `FEED`) |
-| `title` | string | No | Video title (YouTube, TikTok) |
+| `pinterestBoardId` | string | **Yes** (Pinterest) | Pinterest Board ID from `list_chats`. Required when platform is `PINTEREST` |
+| `publicationType` | string | No | `FEED`, `REELS`, or `STORY` (Instagram/Facebook, defaults to `FEED`) |
+| `title` | string | No | Video title (YouTube, TikTok) or Pin title (Pinterest, up to 100 characters) |
 | `topicTag` | string | No | Topic tag (Threads) |
+| `link` | string | No | Destination URL opened when the Pin is clicked (Pinterest) |
+| `altText` | string | No | Alt text for the Pin image (Pinterest) |
+| `boardSectionId` | string | No | Section within the board (Pinterest) |
 
 ## Resources
 
