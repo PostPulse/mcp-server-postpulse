@@ -11,7 +11,7 @@ import { logger } from '../logger';
  * Tool and prompt descriptions are built from this list, so it is the only place to extend.
  */
 export const CONNECTABLE_PLATFORMS = [
-    'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'TIKTOK', 'THREADS', 'LINKEDIN', 'X_TWITTER', 'BLUE_SKY', 'TELEGRAM',
+    'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'TIKTOK', 'THREADS', 'LINKEDIN', 'X_TWITTER', 'BLUE_SKY', 'TELEGRAM', 'PINTEREST',
 ] as const;
 
 /** Comma-separated CONNECTABLE_PLATFORMS for tool and prompt descriptions. */
@@ -35,6 +35,7 @@ const PLATFORM_NOTES: Record<string, string> = {
     INSTAGRAM: 'Instagram: the account must be a Business or Creator account.',
     FACEBOOK: 'Facebook: sign in as a Facebook user who manages the Page you want to post to. After connecting, call list_chats with platform FACEBOOK to pick the Page.',
     YOUTUBE: 'YouTube: the Google account must have a YouTube channel.',
+    PINTEREST: 'Pinterest: after connecting, call list_chats with platform PINTEREST to pick the board to pin to.',
 };
 
 const TELEGRAM_GUIDANCE = `Telegram cannot be connected with a link from the chat. To connect it:
