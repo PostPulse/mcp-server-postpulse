@@ -5,7 +5,7 @@ import { handleConnectAccount, UrlElicitor, CONNECTABLE_PLATFORMS, connectAccoun
 
 // ─── Manual mock of the API client ──────────────────────────────────────────
 
-const LINK_URL = 'https://post-pulse.com/oauth/connect/secret-link-token';
+const LINK_URL = 'https://post-pulse.com/oauth/connect/link#secret-link-token';
 
 interface Call { method: 'GET' | 'POST'; url: string; body?: any }
 

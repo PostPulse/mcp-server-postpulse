@@ -60,8 +60,8 @@ async function runVerification() {
         console.error('❌ Error:', connectResult.content[0].text);
     } else {
         // post-pulse.com in PROD, dev.post-pulse.com when POSTPULSE_API_URL points at the DEV stage.
-        const hasLink = /https:\/\/(dev\.)?post-pulse\.com\/oauth\/connect\/\S+/.test(connectResult.content[0].text);
-        console.log(hasLink ? '✅ Success: PostPulse connect link returned (not printed)' : '❌ No post-pulse.com/oauth/connect/ link in the connect_account result');
+        const hasLink = /https:\/\/(dev\.)?post-pulse\.com\/oauth\/connect\/link#\S+/.test(connectResult.content[0].text);
+        console.log(hasLink ? '✅ Success: PostPulse connect link returned (not printed)' : '❌ No post-pulse.com/oauth/connect/link# link in the connect_account result');
     }
 
     const accounts = JSON.parse(resourceResult.contents[0].text as string);
