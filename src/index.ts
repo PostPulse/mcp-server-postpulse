@@ -55,9 +55,10 @@ Typical workflow:
 Important notes:
 - Always call list_accounts before schedule_post so you have a valid accountId.
 - The scheduledTime must be a future ISO-8601 timestamp (e.g., 2025-06-15T14:00:00Z).
-- For Instagram and Facebook, you can set publicationType to FEED, REELS, or STORY (defaults to FEED).
+- For Instagram, Facebook and Facebook Page, you can set publicationType to FEED, REELS, or STORY (defaults to FEED).
 - For YouTube and TikTok, provide a title for the video.
 - For Telegram, Facebook and Pinterest, you MUST first call list_chats to get the publishing destination (channel/chat ID, Page ID or board ID), then pass it as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. list_chats only works for TELEGRAM, FACEBOOK and PINTEREST platforms.
+- A FACEBOOK_PAGE account is one Facebook Page: schedule_post to it directly, without list_chats or facebookPageId.
 - For Pinterest, attach media (1 image, 1 video, or 2-5 images); title, link, altText and boardSectionId are optional.
 - upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array.
 
@@ -164,7 +165,7 @@ Connecting accounts:
 
 Steps:
 1. Call list_accounts to find my connected accounts. If there is no account for the platform, call connect_account, show me the link and wait for me to finish, then call list_accounts again.
-2. If the platform is FACEBOOK, TELEGRAM or PINTEREST, call list_chats to get the publishing destination (Page, Channel or Board).
+2. If the platform is FACEBOOK, TELEGRAM or PINTEREST, call list_chats to get the publishing destination (Page, Channel or Board). A FACEBOOK_PAGE account is already one Page: skip this step.
 3. If I need to attach media, call upload_media with the image/video URL first.
 4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
                 },

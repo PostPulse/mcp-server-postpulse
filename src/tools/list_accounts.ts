@@ -4,7 +4,7 @@ import { ApiAccount, toAccountSummary } from '../api/accounts';
 
 export const listAccountsTool = {
     name: 'list_accounts',
-    description: 'List all connected social media accounts (Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, X/Twitter, Bluesky, Telegram) with their IDs, platforms, usernames, display names and needsReauthorization flag. Call this first to discover available accounts before using schedule_post or list_chats. A new user may have no accounts yet: in that case, or when the wanted platform is missing, use connect_account. An account with needsReauthorization true must be reconnected with connect_account(accountId) before posting.',
+    description: 'List all connected social media accounts (Instagram, Facebook, Facebook Page, YouTube, TikTok, Threads, LinkedIn, X/Twitter, Bluesky, Telegram) with their IDs, platforms, usernames, display names and needsReauthorization flag. Call this first to discover available accounts before using schedule_post or list_chats. A new user may have no accounts yet: in that case, or when the wanted platform is missing, use connect_account. An account with needsReauthorization true must be reconnected with connect_account(accountId) before posting.',
     inputSchema: z.object({}),
 };
 

@@ -50,6 +50,16 @@ async function runTests() {
         facebookPageId: 'page-123'
     }, {});
 
+    console.log('\n--- Test 3b: Facebook Page account Reel (no Page ID: the account is the Page) ---');
+    await handleSchedulePost({
+        accountId: 5,
+        platform: 'FACEBOOK_PAGE',
+        content: 'Facebook Page reel',
+        mediaPaths: ['path/to/video.mp4'],
+        scheduledTime: '2023-10-29T12:00:00Z',
+        publicationType: 'REELS'
+    }, {});
+
     console.log('\n--- Test 4: Threads Post with Tag ---');
     await handleSchedulePost({
         accountId: 4,
