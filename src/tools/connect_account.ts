@@ -11,7 +11,7 @@ import { logger } from '../logger';
  * Tool and prompt descriptions are built from this list, so it is the only place to extend.
  */
 export const CONNECTABLE_PLATFORMS = [
-    'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'TIKTOK', 'THREADS', 'LINKEDIN', 'X_TWITTER', 'BLUE_SKY', 'TELEGRAM', 'PINTEREST',
+    'INSTAGRAM', 'FACEBOOK', 'FACEBOOK_PAGE', 'YOUTUBE', 'TIKTOK', 'THREADS', 'LINKEDIN', 'X_TWITTER', 'BLUE_SKY', 'TELEGRAM', 'PINTEREST',
 ] as const;
 
 /** Comma-separated CONNECTABLE_PLATFORMS for tool and prompt descriptions. */
@@ -21,6 +21,7 @@ export const CONNECTABLE_PLATFORMS_TEXT = CONNECTABLE_PLATFORMS.join(', ');
 const PLATFORM_NAMES: Record<string, string> = {
     INSTAGRAM: 'Instagram',
     FACEBOOK: 'Facebook',
+    FACEBOOK_PAGE: 'Facebook Page',
     YOUTUBE: 'YouTube',
     TIKTOK: 'TikTok',
     THREADS: 'Threads',
@@ -34,6 +35,7 @@ const PLATFORM_NAMES: Record<string, string> = {
 const PLATFORM_NOTES: Record<string, string> = {
     INSTAGRAM: 'Instagram: the account must be a Business or Creator account.',
     FACEBOOK: 'Facebook: sign in as a Facebook user who manages the Page you want to post to. After connecting, call list_chats with platform FACEBOOK to pick the Page.',
+    FACEBOOK_PAGE: 'Facebook Page: sign in as a Facebook user who manages the Pages, then pick on the PostPulse page which Pages to connect. Each Page becomes its own account (and uses a seat); post to it directly, without list_chats.',
     YOUTUBE: 'YouTube: the Google account must have a YouTube channel.',
     PINTEREST: 'Pinterest: after connecting, call list_chats with platform PINTEREST to pick the board to pin to.',
 };
