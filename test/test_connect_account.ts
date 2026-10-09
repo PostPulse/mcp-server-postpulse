@@ -69,8 +69,17 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.match(text(result), /24 hours/);
         assert.doesNotMatch(text(result), /5 minutes/);
     }],
-    ['platform notes: Facebook points to list_chats', async () => {
+    ['Facebook: a new connection is one account per Page (FACEBOOK_PAGE), picked on the PostPulse page', async () => {
         const result = await handleConnectAccount({ platform: 'FACEBOOK' }, {});
+        assert.deepEqual(linkCalls()[0].body, { platform: 'FACEBOOK_PAGE', origin: 'MCP' });
+        assert.match(text(result), /\[Connect Facebook\]/);
+        assert.match(text(result), /pick on the PostPulse page which Pages/);
+        assert.doesNotMatch(text(result), /list_chats with platform FACEBOOK/);
+    }],
+    ['Facebook: reconnecting an existing FACEBOOK account keeps FACEBOOK', async () => {
+        getHandler = () => ({ data: [{ id: 8, platform: 'FACEBOOK', accountUsername: 'jane' }] });
+        const result = await handleConnectAccount({ accountId: 8 }, {});
+        assert.deepEqual(linkCalls()[0].body, { platform: 'FACEBOOK', accountId: 8, origin: 'MCP' });
         assert.match(text(result), /list_chats with platform FACEBOOK/);
     }],
     ['can-connect false (seat limit): error with billing link, no connect-links', async () => {
