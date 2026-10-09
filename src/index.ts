@@ -67,7 +67,8 @@ Connecting accounts:
 - If list_accounts is empty or lacks the platform the user wants, offer connect_account with that platform. It returns a single-use PostPulse link valid for 24 hours: show it to the user and wait until they say they are done. The page shows which PostPulse account the social account will be attached to and ends with "Account connected — return to your chat".
 - Never claim an account is connected before list_accounts shows it. If it does not appear, ask the user what the browser page said (for example an account limit or "already used" message) and, if needed, get a fresh link.
 - An account with needsReauthorization: true must be reconnected with connect_account(accountId) before posting to it.
-- Telegram cannot be connected from the chat: connect_account returns instructions for the PostPulse website instead of a link.`,
+- Telegram cannot be connected from the chat: connect_account returns instructions for the PostPulse website instead of a link.
+- connect_account with FACEBOOK connects Facebook Pages: the user picks the Pages on the PostPulse page, and each becomes its own FACEBOOK_PAGE account.`,
         },
     );
 

@@ -21,6 +21,7 @@ export const CONNECTABLE_PLATFORMS_TEXT = CONNECTABLE_PLATFORMS.join(', ');
 const PLATFORM_NAMES: Record<string, string> = {
     INSTAGRAM: 'Instagram',
     FACEBOOK: 'Facebook',
+    FACEBOOK_PAGE: 'Facebook',
     YOUTUBE: 'YouTube',
     TIKTOK: 'TikTok',
     THREADS: 'Threads',
@@ -34,6 +35,7 @@ const PLATFORM_NAMES: Record<string, string> = {
 const PLATFORM_NOTES: Record<string, string> = {
     INSTAGRAM: 'Instagram: the account must be a Business or Creator account.',
     FACEBOOK: 'Facebook: sign in as a Facebook user who manages the Page you want to post to. After connecting, call list_chats with platform FACEBOOK to pick the Page.',
+    FACEBOOK_PAGE: 'Facebook: sign in as a Facebook user who manages your Pages, then pick on the PostPulse page which Pages to connect. Each Page becomes its own FACEBOOK_PAGE account (and uses a seat); post to it directly, without list_chats.',
     YOUTUBE: 'YouTube: the Google account must have a YouTube channel.',
     PINTEREST: 'Pinterest: after connecting, call list_chats with platform PINTEREST to pick the board to pin to.',
 };
@@ -164,6 +166,11 @@ export async function handleConnectAccount(
                 log('not_allowed');
                 return textResult(`Error: a new account cannot be connected right now: ${eligibility?.reason || 'not allowed'}. Check your plan or credits at ${BILLING_URL}.`, true);
             }
+        }
+
+        // A new Facebook connection is always one account per Page; a reconnect keeps the account's platform
+        if (!reconnect && platform === 'FACEBOOK') {
+            platform = 'FACEBOOK_PAGE';
         }
 
         const body = reconnect
