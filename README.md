@@ -120,7 +120,7 @@ Get a secure PostPulse link that connects (or reconnects) a social media account
 - The link is single-use, tied to the user's PostPulse account and valid for **24 hours**; the platform consent starts only when the user clicks Continue on the page. It must not be shared: whoever completes it attaches their social account to this PostPulse account.
 - If too many links are requested in a short time, the tool asks to wait a few minutes and try again.
 - **Telegram** cannot be connected with a link: the tool returns instructions to connect it on https://post-pulse.com/app/accounts instead.
-- For Facebook and Telegram, call `list_chats` afterwards to pick the Page or channel.
+- A new Facebook connection creates one `FACEBOOK_PAGE` account per picked Page: post to it directly, without `list_chats`. For `TELEGRAM` and for a reconnected `FACEBOOK` account, call `list_chats` afterwards to pick the channel or Page.
 - Clients that support URL-mode elicitation additionally get a native "open this link" dialog; the link is always in the text result as well.
 - Errors that happen in the browser (account limit, account already used by another PostPulse user, expired link) are shown on the page, not returned by the tool.
 
@@ -128,13 +128,13 @@ Get a secure PostPulse link that connects (or reconnects) a social media account
 
 List publishing destinations for accounts that have sub-destinations. Facebook accounts publish to **Pages**, Telegram accounts publish to **channels or chats**, and Pinterest accounts publish to **boards**. Call this before scheduling posts to these platforms — use the returned `id` as the `facebookPageId`, `telegramChannelId` or `pinterestBoardId` in `schedule_post`.
 
-Only supports `FACEBOOK`, `TELEGRAM` and `PINTEREST`. Other platforms do not have sub-destinations and should be posted to directly.
+Only supports accounts whose platform is `FACEBOOK`, `TELEGRAM` or `PINTEREST`; pass the account's platform exactly as `list_accounts` returned it. Other platforms, including `FACEBOOK_PAGE` (an account that is one Page), do not have sub-destinations and should be posted to directly.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `accountId` | number | Yes | Account ID obtained from `list_accounts` |
-| `platform` | string | Yes | `FACEBOOK`, `TELEGRAM` or `PINTEREST` |
+| `platform` | string | Yes | The account's platform from `list_accounts`: `FACEBOOK`, `TELEGRAM` or `PINTEREST` |
 
 **Returns:** JSON array of destination objects (`id`, `title`, `type`, `platform`).
 
