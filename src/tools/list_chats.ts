@@ -3,10 +3,10 @@ import { createApiClient } from '../api/client';
 
 export const listChatsTool = {
     name: 'list_chats',
-    description: 'List publishing destinations (Telegram channels/chats, Facebook Pages or Pinterest boards) available for a specific account. Required before scheduling posts to Telegram, Facebook or Pinterest — pass the returned id as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. Only supports TELEGRAM, FACEBOOK and PINTEREST platforms; other platforms, including FACEBOOK_PAGE (an account that is one Facebook Page), do not have sub-destinations and should be posted to directly via schedule_post.',
+    description: 'List publishing destinations (Telegram channels/chats, Facebook Pages or Pinterest boards) of one account. Call it only for an account whose platform in list_accounts is TELEGRAM, FACEBOOK or PINTEREST, and pass that platform exactly as list_accounts returned it; then pass the returned id as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. Accounts of every other platform, including FACEBOOK_PAGE (an account that is one Facebook Page; connect_account creates these for Facebook), have no destinations: post to them directly via schedule_post.',
     inputSchema: z.object({
         accountId: z.coerce.number().describe('The account ID from list_accounts'),
-        platform: z.string().describe('Platform name: FACEBOOK, TELEGRAM or PINTEREST (only these platforms have sub-destinations)'),
+        platform: z.string().describe('The account\'s platform exactly as list_accounts returned it: TELEGRAM, FACEBOOK or PINTEREST. Never FACEBOOK for a FACEBOOK_PAGE account'),
     }),
 };
 

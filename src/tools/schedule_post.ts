@@ -3,16 +3,16 @@ import { createApiClient } from '../api/client';
 
 export const schedulePostTool = {
     name: 'schedule_post',
-    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook and Facebook Page (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, Pinterest, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts (if the user has no account for the platform, use connect_account first), a platform identifier, and a scheduledTime in ISO-8601 format. For Facebook, Telegram and Pinterest, you MUST first call list_chats to get the publishing destination (Page ID, Channel ID or Board ID) and pass it as facebookPageId, telegramChannelId or pinterestBoardId respectively. A FACEBOOK_PAGE account is one Facebook Page: post to it directly, without list_chats or facebookPageId. Pinterest posts require media (1 image, 1 video, or 2-5 images). Optionally attach media from upload_media via mediaPaths, set publication type, title, topic tag, or Pin link/alt text depending on the platform.',
+    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook and Facebook Page (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, Pinterest, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts (if the user has no account for the platform, use connect_account first), a platform identifier, and a scheduledTime in ISO-8601 format. For an account whose platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, you MUST first call list_chats with that platform to get the publishing destination (Page ID, Channel ID or Board ID) and pass it as facebookPageId, telegramChannelId or pinterestBoardId respectively. A FACEBOOK_PAGE account is one Facebook Page (connect_account creates these for Facebook): post to it directly, without list_chats or facebookPageId. Pinterest posts require media (1 image, 1 video, or 2-5 images). Optionally attach media from upload_media via mediaPaths, set publication type, title, topic tag, or Pin link/alt text depending on the platform.',
     inputSchema: z.object({
         accountId: z.coerce.number().describe('The account ID from list_accounts'),
-        platform: z.string().describe('Platform name (e.g. INSTAGRAM, FACEBOOK, FACEBOOK_PAGE, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, PINTEREST, X_TWITTER)'),
+        platform: z.string().describe('The account\'s platform exactly as list_accounts returned it (e.g. INSTAGRAM, FACEBOOK, FACEBOOK_PAGE, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, PINTEREST, X_TWITTER)'),
         content: z.string().optional().describe('Post content text'),
         mediaPaths: z.array(z.string().describe('Media key returned by upload_media')).optional().describe('Optional array of media keys from upload_media'),
         scheduledTime: z.string().describe('ISO-8601 timestamp for scheduling (e.g., 2023-10-27T10:00:00Z).'),
 
         // Platform specific optional fields
-        facebookPageId: z.string().optional().describe('Facebook Page ID (required for FACEBOOK). Get it from list_chats with platform=FACEBOOK. Not used for FACEBOOK_PAGE: the account is the Page'),
+        facebookPageId: z.string().optional().describe('Facebook Page ID (required when the account\'s platform is FACEBOOK). Get it from list_chats with platform=FACEBOOK. Not used for FACEBOOK_PAGE: the account is the Page'),
         telegramChannelId: z.string().optional().describe('Telegram Channel/Chat ID (required for Telegram). Get it from list_chats with platform=TELEGRAM'),
         pinterestBoardId: z.string().optional().describe('Pinterest Board ID (required for Pinterest). Get it from list_chats with platform=PINTEREST'),
         publicationType: z.enum(['FEED', 'REELS', 'STORY']).optional().describe('Publication type for Instagram/Facebook/Facebook Page (default: FEED)'),
