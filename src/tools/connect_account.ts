@@ -34,17 +34,17 @@ const PLATFORM_NAMES: Record<string, string> = {
 
 const PLATFORM_NOTES: Record<string, string> = {
     INSTAGRAM: 'Instagram: the account must be a Business or Creator account.',
-    FACEBOOK: 'Facebook: sign in as a Facebook user who manages the Page you want to post to. After connecting, call list_chats with platform FACEBOOK to pick the Page.',
+    FACEBOOK: 'Facebook: sign in as a Facebook user who manages the Page you want to post to. After connecting, call list_chats for this account to pick the Page.',
     FACEBOOK_PAGE: 'Facebook: sign in as a Facebook user who manages your Pages, then pick on the PostPulse page which Pages to connect. Each Page becomes its own FACEBOOK_PAGE account (and uses a seat); post to it directly, without list_chats.',
     YOUTUBE: 'YouTube: the Google account must have a YouTube channel.',
-    PINTEREST: 'Pinterest: after connecting, call list_chats with platform PINTEREST to pick the board to pin to.',
+    PINTEREST: 'Pinterest: after connecting, call list_chats for this account to pick the board to pin to.',
 };
 
 const TELEGRAM_GUIDANCE = `Telegram cannot be connected with a link from the chat. To connect it:
 1. Open https://post-pulse.com/app/accounts and sign in with the same login you use for this chat (Google or email).
 2. Connect Telegram there.
 3. Add the PostPulse bot to the channel or group you want to post to.
-4. Come back and tell me, and I will check with list_accounts and list_chats with platform TELEGRAM.`;
+4. Come back and tell me, and I will check with list_accounts and list_chats for the Telegram account.`;
 
 const BILLING_URL = 'https://post-pulse.com/app/billing';
 

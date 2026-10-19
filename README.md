@@ -128,13 +128,12 @@ Get a secure PostPulse link that connects (or reconnects) a social media account
 
 List publishing destinations for accounts that have sub-destinations. Facebook accounts publish to **Pages**, Telegram accounts publish to **channels or chats**, and Pinterest accounts publish to **boards**. Call this before scheduling posts to these platforms — use the returned `id` as the `facebookPageId`, `telegramChannelId` or `pinterestBoardId` in `schedule_post`.
 
-Only supports accounts whose platform is `FACEBOOK`, `TELEGRAM` or `PINTEREST`; pass the account's platform exactly as `list_accounts` returned it. Other platforms, including `FACEBOOK_PAGE` (an account that is one Page), do not have sub-destinations and should be posted to directly.
+Only supports accounts whose platform is `FACEBOOK`, `TELEGRAM` or `PINTEREST`. Other platforms, including `FACEBOOK_PAGE` (an account that is one Page), do not have sub-destinations and should be posted to directly.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `accountId` | number | Yes | Account ID obtained from `list_accounts` |
-| `platform` | string | Yes | The account's platform from `list_accounts`: `FACEBOOK`, `TELEGRAM` or `PINTEREST` |
 
 **Returns:** JSON array of destination objects (`id`, `title`, `type`, `platform`).
 

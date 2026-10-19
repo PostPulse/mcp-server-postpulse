@@ -75,8 +75,7 @@ async function runVerification() {
 
     console.log('\n--- 2. Testing list_chats ---');
     const chatsResult = await handleListChats({
-        accountId: firstAccount.id,
-        platform: firstAccount.platform
+        accountId: firstAccount.id
     }, {
         authInfo: {
             token: process.env.POSTPULSE_ACCESS_TOKEN || '',
