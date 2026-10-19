@@ -57,7 +57,7 @@ Important notes:
 - The scheduledTime must be a future ISO-8601 timestamp (e.g., 2025-06-15T14:00:00Z).
 - For Instagram, Facebook and Facebook Page, you can set publicationType to FEED, REELS, or STORY (defaults to FEED).
 - For YouTube and TikTok, provide a title for the video.
-- For an account whose platform in list_accounts is TELEGRAM, FACEBOOK or PINTEREST, you MUST first call list_chats with that platform to get the publishing destination (channel/chat ID, Page ID or board ID), then pass it as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. list_chats only works for these three platforms. Always pass an account's platform exactly as list_accounts returned it, to list_chats and to schedule_post.
+- For an account whose platform in list_accounts is TELEGRAM, FACEBOOK or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (channel/chat ID, Page ID or board ID), then pass it as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. list_chats only works for these three platforms. Always pass an account's platform to schedule_post exactly as list_accounts returned it.
 - A FACEBOOK_PAGE account is one Facebook Page (connect_account creates FACEBOOK_PAGE accounts for Facebook): schedule_post to it directly, without list_chats or facebookPageId.
 - For Pinterest, attach media (1 image, 1 video, or 2-5 images); title, link, altText and boardSectionId are optional.
 - upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array.
@@ -166,7 +166,7 @@ Connecting accounts:
 
 Steps:
 1. Call list_accounts to find my connected accounts. If there is no account for the platform, call connect_account, show me the link and wait for me to finish, then call list_accounts again.
-2. If the account's platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, call list_chats with that platform to get the publishing destination (Page, Channel or Board). Any other platform, including FACEBOOK_PAGE (already one Page), skips this step.
+2. If the account's platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, call list_chats for that account to get the publishing destination (Page, Channel or Board). Any other platform, including FACEBOOK_PAGE (already one Page), skips this step.
 3. If I need to attach media, call upload_media with the image/video URL first.
 4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
                 },
@@ -194,7 +194,7 @@ Steps:
 2. Call connect_account with the platform (or with accountId if an existing account has needsReauthorization: true).
 3. Show me the link (single-use, valid for 24 hours) and wait until I say I am done. The page shows which PostPulse account the social account will be attached to and ends with "return to your chat".
 4. Call list_accounts again to confirm the account is connected.
-5. If the account's platform in list_accounts is FACEBOOK or TELEGRAM, also call list_chats with that platform to show the Pages or channels I can post to. A newly connected Facebook account is FACEBOOK_PAGE (one Page): there is nothing to list.`,
+5. If the account's platform in list_accounts is FACEBOOK or TELEGRAM, also call list_chats for that account to show the Pages or channels I can post to. A newly connected Facebook account is FACEBOOK_PAGE (one Page): there is nothing to list.`,
                 },
             }],
         };

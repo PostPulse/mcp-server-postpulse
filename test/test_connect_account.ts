@@ -74,13 +74,13 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.deepEqual(linkCalls()[0].body, { platform: 'FACEBOOK_PAGE', origin: 'MCP' });
         assert.match(text(result), /\[Connect Facebook\]/);
         assert.match(text(result), /pick on the PostPulse page which Pages/);
-        assert.doesNotMatch(text(result), /list_chats with platform FACEBOOK/);
+        assert.doesNotMatch(text(result), /call list_chats for this account to pick the Page/);
     }],
     ['Facebook: reconnecting an existing FACEBOOK account keeps FACEBOOK', async () => {
         getHandler = () => ({ data: [{ id: 8, platform: 'FACEBOOK', accountUsername: 'jane' }] });
         const result = await handleConnectAccount({ accountId: 8 }, {});
         assert.deepEqual(linkCalls()[0].body, { platform: 'FACEBOOK', accountId: 8, origin: 'MCP' });
-        assert.match(text(result), /list_chats with platform FACEBOOK/);
+        assert.match(text(result), /call list_chats for this account to pick the Page/);
     }],
     ['can-connect false (seat limit): error with billing link, no connect-links', async () => {
         getHandler = () => ({ data: { allowed: false, reason: 'You have reached the maximum number of accounts allowed by your subscription.' } });
@@ -132,7 +132,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         const result = await handleConnectAccount({ accountId: 8 }, {});
         assert.equal(result.isError, undefined);
         assert.match(text(result), /cannot be connected with a link/);
-        assert.match(text(result), /list_chats with platform TELEGRAM/);
+        assert.match(text(result), /list_chats for the Telegram account/);
         assert.equal(linkCalls().length, 0);
     }],
     ['neither platform nor accountId: error', async () => {
