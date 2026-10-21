@@ -149,13 +149,17 @@ const tests: Array<[string, () => Promise<void>]> = [
             rejected(/^unexpected "iss" claim value$/),
         );
     }],
-    ['an issuer failure tries the next set: a key in both sets passes with either set\'s issuers', async () => {
-        const verifier = verifierFor({ ...euOn(), POSTPULSE_AUTH_EU_JWKS_URI: us.url, POSTPULSE_AUTH_EU_ISSUERS: EU_CANONICAL });
-        await verifier.verifyAccessToken(await sign(us.privateKey, us.kid, { iss: EU_CANONICAL }));
-        await assert.rejects(
-            verifier.verifyAccessToken(await sign(us.privateKey, us.kid, { iss: CANARY })),
-            rejected(/^unexpected "iss" claim value$/),
-        );
+    ['an issuer failure tries the next set: a key in both sets passes with either set\'s issuers, in either order', async () => {
+        for (const order of [[EU_CANONICAL, ISSUER], [ISSUER, EU_CANONICAL]]) {
+            const verifier = verifierFor({ ...euOn(), POSTPULSE_AUTH_EU_JWKS_URI: us.url, POSTPULSE_AUTH_EU_ISSUERS: EU_CANONICAL });
+            for (const iss of order) {
+                await verifier.verifyAccessToken(await sign(us.privateKey, us.kid, { iss }));
+            }
+            await assert.rejects(
+                verifier.verifyAccessToken(await sign(us.privateKey, us.kid, { iss: CANARY })),
+                rejected(/^unexpected "iss" claim value$/),
+            );
+        }
     }],
     ['EU on: unknown kid is rejected', async () => {
         const verifier = verifierFor(euOn());
@@ -179,6 +183,14 @@ const tests: Array<[string, () => Promise<void>]> = [
         await verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid));
         assert.equal(us.hits, 1);
         assert.equal(eu.hits, 1);
+    }],
+    ['EU on: with the US JWKS timing out, an EU-key token with an untrusted issuer reports the issuer failure', async () => {
+        us.hang = true;
+        const verifier = verifierFor(euOn());
+        await assert.rejects(
+            verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid, { iss: 'https://evil.example/' })),
+            rejected(/^unexpected "iss" claim value$/),
+        );
     }],
     ['a non-JWT bearer is rejected without any JWKS fetch', async () => {
         const verifier = verifierFor(euOn());

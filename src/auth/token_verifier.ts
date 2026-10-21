@@ -11,6 +11,8 @@ interface KeySet {
 // Bound on the kid -> key set map; each Auth0 tenant publishes 2-4 kids.
 const MAX_AFFINITY = 16;
 
+const isIssuerFailure = (error: any) => error?.code === 'ERR_JWT_CLAIM_VALIDATION_FAILED' && error.claim === 'iss';
+
 /**
  * Whether another key set may still verify the token: the kid is not in this set, the issuer is bound to
  * another set, or this set's JWKS did not answer in time.
@@ -18,7 +20,7 @@ const MAX_AFFINITY = 16;
 function tryNextSet(error: any): boolean {
     return error?.code === 'ERR_JWKS_NO_MATCHING_KEY'
         || error?.code === 'ERR_JWKS_TIMEOUT'
-        || (error?.code === 'ERR_JWT_CLAIM_VALIDATION_FAILED' && error.claim === 'iss');
+        || isIssuerFailure(error);
 }
 
 function kidOf(token: string): string | undefined {
@@ -53,7 +55,8 @@ export function createTokenVerifier(cfg: Config) {
         const kid = kidOf(token);
         const known = kid ? affinity.get(kid) : undefined;
         let failure: any;
-        for (const set of known ? [known] : sets) {
+        // The set that verified this kid before goes first; the others still get their turn (a kid may be in both).
+        for (const set of known ? [known, ...sets.filter((other) => other !== known)] : sets) {
             try {
                 const { payload } = await jwtVerify(token, set.jwks, {
                     issuer: set.issuers,
@@ -66,8 +69,9 @@ export function createTokenVerifier(cfg: Config) {
                 return payload;
             } catch (error: any) {
                 if (!tryNextSet(error)) throw error;
-                // Report the set that holds the kid, not a set that does not know it.
-                if (!failure || failure.code === 'ERR_JWKS_NO_MATCHING_KEY') failure = error;
+                // Report the set that holds the kid: an issuer failure replaces any earlier error, and an
+                // earlier "no matching key" gives way to any later one.
+                if (!failure || failure.code === 'ERR_JWKS_NO_MATCHING_KEY' || isIssuerFailure(error)) failure = error;
             }
         }
         throw failure;
