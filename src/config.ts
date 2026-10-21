@@ -3,7 +3,9 @@ dotenv.config({ quiet: true });
 
 import { z } from 'zod';
 
-const configSchema = z.object({
+const csv = (value: string) => value.split(',').map((item) => item.trim()).filter(Boolean);
+
+export const configSchema = z.object({
   // Server
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().default(3000),
@@ -11,7 +13,12 @@ const configSchema = z.object({
 
   // PostPulse Auth (Auth0)
   POSTPULSE_AUTH_ISSUER: z.string().default('https://auth.post-pulse.com/'),
-  POSTPULSE_AUTH_JWKS_URI: z.string().default('https://auth.post-pulse.com/.well-known/jwks.json'),
+  // Trusted key sets, one per Auth0 tenant: the tenant's canonical JWKS and the comma-separated issuers its keys
+  // may sign for. A set with an empty JWKS URI or no issuers is off.
+  POSTPULSE_AUTH_US_JWKS_URI: z.string().default('https://dev-yb150m5gz2ss41sl.us.auth0.com/.well-known/jwks.json'),
+  POSTPULSE_AUTH_US_ISSUERS: z.string().optional().describe('Defaults to POSTPULSE_AUTH_ISSUER'),
+  POSTPULSE_AUTH_EU_JWKS_URI: z.string().default(''),
+  POSTPULSE_AUTH_EU_ISSUERS: z.string().default(''),
   POSTPULSE_AUDIENCE: z.string().default('https://api.post-pulse.com'),
 
   // PostPulse API
@@ -33,6 +40,12 @@ const configSchema = z.object({
   LOKI_USER: z.string().optional().describe('Grafana Cloud Loki user id'),
   LOKI_PASSWORD: z.string().optional().describe('Grafana Cloud Loki API token'),
 
-});
+}).transform((env) => ({
+  ...env,
+  POSTPULSE_AUTH_US_ISSUERS: csv(env.POSTPULSE_AUTH_US_ISSUERS ?? env.POSTPULSE_AUTH_ISSUER),
+  POSTPULSE_AUTH_EU_ISSUERS: csv(env.POSTPULSE_AUTH_EU_ISSUERS),
+}));
+
+export type Config = z.infer<typeof configSchema>;
 
 export const config = configSchema.parse(process.env);

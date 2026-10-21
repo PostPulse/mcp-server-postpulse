@@ -90,7 +90,10 @@ docker run -p 3000:3000 mcp-server-postpulse
 | `PORT` | `3000` | Server port |
 | `PUBLIC_URL` | — | Public-facing URL (for OAuth metadata discovery) |
 | `POSTPULSE_AUTH_ISSUER` | `https://auth.post-pulse.com/` | Auth0 issuer URL |
-| `POSTPULSE_AUTH_JWKS_URI` | `https://auth.post-pulse.com/.well-known/jwks.json` | JWKS endpoint |
+| `POSTPULSE_AUTH_US_JWKS_URI` | `https://dev-yb150m5gz2ss41sl.us.auth0.com/.well-known/jwks.json` | JWKS of the US Auth0 tenant; empty turns the US key set off |
+| `POSTPULSE_AUTH_US_ISSUERS` | value of `POSTPULSE_AUTH_ISSUER` | Comma-separated issuers trusted for US keys |
+| `POSTPULSE_AUTH_EU_JWKS_URI` | — | JWKS of the EU Auth0 tenant; empty turns the EU key set off |
+| `POSTPULSE_AUTH_EU_ISSUERS` | — | Comma-separated issuers trusted for EU keys |
 | `POSTPULSE_AUDIENCE` | `https://api.post-pulse.com` | API audience |
 | `POSTPULSE_API_URL` | `https://api.post-pulse.com` | PostPulse API base URL |
 | `REDIS_URL` | — | Redis connection URL for session/event persistence (required) |
