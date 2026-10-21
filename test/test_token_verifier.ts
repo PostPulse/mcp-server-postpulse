@@ -14,6 +14,7 @@ import { logger } from '../src/logger';
 const ISSUER = 'https://auth.post-pulse.com/';
 const EU_CANONICAL = 'https://post-pulse.eu.auth0.com/';
 const CANARY = 'https://auth-canary.post-pulse.com/';
+const US_ONLY = 'https://us-only.example/'; // an issuer no EU configuration trusts
 const API = 'https://api.post-pulse.com';
 const MANAGEMENT_API = 'https://post-pulse.eu.auth0.com/api/v2/';
 
@@ -103,9 +104,20 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(typeof info.expiresAt, 'number');
         assert.equal(eu.hits, 0);
     }],
-    ['EU off: an EU-key token is rejected and the EU JWKS is never fetched', async () => {
-        const verifier = verifierFor(usOnly());
-        await assert.rejects(verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid)), rejected(/no applicable key/));
+    ['EU off: an EU-key token is rejected and the EU JWKS is never fetched, even with half of the EU set configured', async () => {
+        const euHalves: Array<Record<string, string>> = [
+            {},
+            { POSTPULSE_AUTH_EU_JWKS_URI: eu.url },
+            { POSTPULSE_AUTH_EU_JWKS_URI: eu.url, POSTPULSE_AUTH_EU_ISSUERS: ' , ' },
+            { POSTPULSE_AUTH_EU_ISSUERS: EU_CANONICAL },
+        ];
+        for (const euHalf of euHalves) {
+            const verifier = verifierFor({ ...usOnly(), ...euHalf });
+            await assert.rejects(
+                verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid, { iss: EU_CANONICAL })),
+                rejected(/no applicable key/),
+            );
+        }
         assert.equal(eu.hits, 0);
     }],
     ['EU off: US key + EU canonical issuer is rejected with the same log line as before', async () => {
@@ -148,6 +160,13 @@ const tests: Array<[string, () => Promise<void>]> = [
             verifier.verifyAccessToken(await sign(us.privateKey, us.kid, { iss: EU_CANONICAL })),
             rejected(/^unexpected "iss" claim value$/),
         );
+    }],
+    ['EU on: EU key + an issuer only the US set trusts is rejected, before and after the EU kid is learned', async () => {
+        const verifier = verifierFor({ ...euOn(), POSTPULSE_AUTH_US_ISSUERS: US_ONLY });
+        const euKeyUsIssuer = () => sign(eu.privateKey, eu.kid, { iss: US_ONLY });
+        await assert.rejects(verifier.verifyAccessToken(await euKeyUsIssuer()), rejected(/^unexpected "iss" claim value$/));
+        await verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid));
+        await assert.rejects(verifier.verifyAccessToken(await euKeyUsIssuer()), rejected(/^unexpected "iss" claim value$/));
     }],
     ['an issuer failure tries the next set: a key in both sets passes with either set\'s issuers, in either order', async () => {
         for (const order of [[EU_CANONICAL, ISSUER], [ISSUER, EU_CANONICAL]]) {

@@ -41,7 +41,8 @@ export function createTokenVerifier(cfg: Config) {
         { jwksUri: cfg.POSTPULSE_AUTH_EU_JWKS_URI, issuers: cfg.POSTPULSE_AUTH_EU_ISSUERS },
     ]
         .filter((set) => set.jwksUri && set.issuers.length)
-        // On an unknown kid, jose refetches a JWKS at most once per 30 s (its default cooldown).
+        // On an unknown kid, jose refetches a JWKS at most once per 30 s (its default cooldown) while the JWKS
+        // answers 200; while it fails, each request that needs it starts a new fetch (one in flight), as before.
         .map((set) => ({
             jwks: createRemoteJWKSet(new URL(set.jwksUri), { timeoutDuration: 3000 }),
             issuers: set.issuers,
