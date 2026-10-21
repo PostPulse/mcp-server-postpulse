@@ -20,6 +20,10 @@ export const configSchema = z.object({
   POSTPULSE_AUTH_EU_JWKS_URI: z.string().default(''),
   POSTPULSE_AUTH_EU_ISSUERS: z.string().default(''),
   POSTPULSE_AUDIENCE: z.string().default('https://api.post-pulse.com'),
+  // Comma-separated scopes advertised in the OAuth protected-resource metadata (scopes_supported).
+  POSTPULSE_AUTH_SCOPES_SUPPORTED: z
+    .string()
+    .default('openid,profile,email,offline_access,postpulse-api/accounts.read,postpulse-api/api,postpulse-api/media.write,postpulse-api/posts.read,postpulse-api/posts.write'),
 
   // PostPulse API
   POSTPULSE_API_URL: z.string().default('https://api.post-pulse.com'),
@@ -44,6 +48,7 @@ export const configSchema = z.object({
   ...env,
   POSTPULSE_AUTH_US_ISSUERS: csv(env.POSTPULSE_AUTH_US_ISSUERS ?? env.POSTPULSE_AUTH_ISSUER),
   POSTPULSE_AUTH_EU_ISSUERS: csv(env.POSTPULSE_AUTH_EU_ISSUERS),
+  POSTPULSE_AUTH_SCOPES_SUPPORTED: csv(env.POSTPULSE_AUTH_SCOPES_SUPPORTED),
 }));
 
 export type Config = z.infer<typeof configSchema>;

@@ -275,12 +275,7 @@ app.use(
     mcpAuthMetadataRouter({
         oauthMetadata,
         resourceServerUrl: mcpServerUrl,
-        scopesSupported: [
-            'openid', 'profile', 'email', 'offline_access',
-            'postpulse-api/accounts.read', 'postpulse-api/api',
-            'postpulse-api/media.write', 'postpulse-api/posts.read',
-            'postpulse-api/posts.write'
-        ],
+        scopesSupported: config.POSTPULSE_AUTH_SCOPES_SUPPORTED,
         resourceName: 'PostPulse MCP Server',
     }),
 );
