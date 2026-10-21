@@ -23,19 +23,31 @@ interface Tenant {
     privateKey: CryptoKey;
     url: string;
     hits: number;
-    hang: boolean; // accept requests but never answer, so jose times out
+    // How the JWKS server fails: 'hang' accepts requests but never answers (jose times out), 'reset' drops the
+    // connection (fetch fails), 503 answers with that status, 'malformed' answers 200 with no key set.
+    // Unset: it serves the key set.
+    fault?: 'hang' | 'reset' | 503 | 'malformed';
     server: http.Server;
 }
 
 async function tenant(kid: string): Promise<Tenant> {
     const { privateKey, publicKey } = await generateKeyPair('RS256');
     const jwk = { ...(await exportJWK(publicKey)), kid, alg: 'RS256', use: 'sig' };
-    const t = { kid, privateKey, url: '', hits: 0, hang: false } as Tenant;
-    t.server = http.createServer((_req, res) => {
+    const t = { kid, privateKey, url: '', hits: 0 } as Tenant;
+    t.server = http.createServer((req, res) => {
         t.hits++;
-        if (t.hang) return;
+        if (t.fault === 'hang') return;
+        if (t.fault === 'reset') {
+            req.socket.destroy();
+            return;
+        }
+        if (t.fault === 503) {
+            res.writeHead(503);
+            res.end();
+            return;
+        }
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ keys: [jwk] }));
+        res.end(JSON.stringify(t.fault === 'malformed' ? {} : { keys: [jwk] }));
     });
     await new Promise<void>((resolve) => t.server.listen(0, '127.0.0.1', resolve));
     t.url = `http://127.0.0.1:${(t.server.address() as AddressInfo).port}/.well-known/jwks.json`;
@@ -195,7 +207,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         await verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid, { iss: EU_CANONICAL }));
     }],
     ['EU on: a US JWKS timeout falls through to EU; kid affinity then skips the US set', async () => {
-        us.hang = true;
+        us.fault = 'hang';
         const verifier = verifierFor(euOn());
         await verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid));
         assert.equal(us.hits, 1);
@@ -204,12 +216,30 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(eu.hits, 1);
     }],
     ['EU on: with the US JWKS timing out, an EU-key token with an untrusted issuer reports the issuer failure', async () => {
-        us.hang = true;
+        us.fault = 'hang';
         const verifier = verifierFor(euOn());
         await assert.rejects(
             verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid, { iss: 'https://evil.example/' })),
             rejected(/^unexpected "iss" claim value$/),
         );
+    }],
+    ['EU on: a US JWKS that answers 503, drops the connection or serves no key set falls through to EU', async () => {
+        const faults: Array<[Tenant['fault'], RegExp]> = [
+            [503, /Expected 200 OK/],
+            ['reset', /fetch failed/],
+            ['malformed', /JSON Web Key Set malformed/],
+        ];
+        for (const [fault, usFailure] of faults) {
+            us.fault = fault;
+            us.hits = 0;
+            eu.hits = 0;
+            const verifier = verifierFor(euOn());
+            await verifier.verifyAccessToken(await sign(eu.privateKey, eu.kid));
+            assert.equal(us.hits, 1);
+            assert.equal(eu.hits, 1);
+            // A US token still fails, and reports the US failure rather than the EU set's "no matching key".
+            await assert.rejects(verifier.verifyAccessToken(await sign(us.privateKey, us.kid)), rejected(usFailure));
+        }
     }],
     ['a non-JWT bearer is rejected without any JWKS fetch', async () => {
         const verifier = verifierFor(euOn());
@@ -235,7 +265,7 @@ async function run() {
     for (const [name, fn] of tests) {
         for (const t of [us, eu]) {
             t.hits = 0;
-            t.hang = false;
+            t.fault = undefined;
         }
         logged = [];
         try {

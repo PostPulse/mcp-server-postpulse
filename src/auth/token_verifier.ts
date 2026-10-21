@@ -15,11 +15,15 @@ const isIssuerFailure = (error: any) => error?.code === 'ERR_JWT_CLAIM_VALIDATIO
 
 /**
  * Whether another key set may still verify the token: the kid is not in this set, the issuer is bound to
- * another set, or this set's JWKS did not answer in time.
+ * another set, or this set's JWKS could not be fetched. The next set checks the signature against its own
+ * keys and the issuer against its own list, so falling through never widens trust.
  */
 function tryNextSet(error: any): boolean {
     return error?.code === 'ERR_JWKS_NO_MATCHING_KEY'
         || error?.code === 'ERR_JWKS_TIMEOUT'
+        || error?.code === 'ERR_JOSE_GENERIC' // jose: the JWKS answered non-200 or not JSON
+        || error?.code === 'ERR_JWKS_INVALID' // the JWKS body is not a key set
+        || error instanceof TypeError // fetch failed: connection refused or reset, DNS failure
         || isIssuerFailure(error);
 }
 
