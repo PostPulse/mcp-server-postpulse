@@ -108,6 +108,22 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.deepEqual(cfg.POSTPULSE_AUTH_US_ISSUERS, [CANARY]);
         assert.deepEqual(cfg.POSTPULSE_AUTH_EU_ISSUERS, [ISSUER, EU_CANONICAL]);
     }],
+    ['config default: advertised scopes are the list src/index.ts hard-coded before, in the same order', async () => {
+        const cfg = configSchema.parse({ REDIS_URL: 'redis://localhost:6379' });
+        assert.deepEqual(cfg.POSTPULSE_AUTH_SCOPES_SUPPORTED, [
+            'openid', 'profile', 'email', 'offline_access',
+            'postpulse-api/accounts.read', 'postpulse-api/api',
+            'postpulse-api/media.write', 'postpulse-api/posts.read',
+            'postpulse-api/posts.write'
+        ]);
+    }],
+    ['config: advertised scopes are comma-separated and trimmed, blanks dropped, order kept', async () => {
+        const cfg = configSchema.parse({
+            REDIS_URL: 'redis://localhost:6379',
+            POSTPULSE_AUTH_SCOPES_SUPPORTED: ' offline_access , postpulse-api/posts.write,,postpulse-api/api, ',
+        });
+        assert.deepEqual(cfg.POSTPULSE_AUTH_SCOPES_SUPPORTED, ['offline_access', 'postpulse-api/posts.write', 'postpulse-api/api']);
+    }],
     ['EU off: US key + custom-domain issuer + API audience is accepted (clientId = azp)', async () => {
         const verifier = verifierFor(usOnly());
         const info = await verifier.verifyAccessToken(await sign(us.privateKey, us.kid));
