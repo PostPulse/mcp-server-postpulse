@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node build/index.js",
     "dev": "npm run build && node build/index.js",
-    "test": "ts-node test/test_connect_account.ts && ts-node test/test_list_accounts.ts && ts-node test/test_token_verifier.ts"
+    "test": "ts-node test/test_connect_account.ts && ts-node test/test_list_accounts.ts && ts-node test/test_read_posts.ts && ts-node test/test_token_verifier.ts"
   },
   "repository": {
     "type": "git",

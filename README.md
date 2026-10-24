@@ -9,6 +9,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 - **Multi-platform posting** — Schedule posts to 10 social media platforms from a single interface
 - **Media management** — Upload images and videos via URL or binary data for use in posts
 - **Account management** — List and manage all connected social media accounts
+- **Read your posts** — List posts by date range and get each post's per-platform status, public link, error and metrics
 - **Connect social accounts from the chat** — Get a secure link to connect or reconnect an account without opening the PostPulse app
 - **OAuth 2.0 authentication** — Secure access via Auth0-based token verification
 - **Streamable HTTP transport** — Modern MCP transport protocol for reliable communication
@@ -175,6 +176,27 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | `link` | string | No | Destination URL opened when the Pin is clicked (Pinterest) |
 | `altText` | string | No | Alt text for the Pin image (Pinterest) |
 | `boardSectionId` | string | No | Section within the board (Pinterest) |
+
+### `list_posts`
+
+List posts scheduled or published in a date range (by scheduled time), oldest first: id, overall status, scheduled time, platforms and text. The API is not paginated, so one call spans at most 93 days; split longer periods into several calls. Drafts without a scheduled time are not listed.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `fromDate` | string | Yes | ISO-8601 date (`2026-10-01`, start of that UTC day) or timestamp |
+| `toDate` | string | Yes | ISO-8601 date (`2026-10-31`, end of that UTC day) or timestamp |
+| `platform` | string | No | Only posts to this platform, as `list_accounts` returns it |
+| `status` | string | No | `DRAFT`, `SCHEDULED`, `AWAITING_MEDIA`, `MEDIA_IMPORT_FAILED`, `IN_PROGRESS`, `COMPLETED`, `FAILED` or `PARTIALLY_COMPLETED` |
+
+### `get_post`
+
+Get one post with its outcome on each account: platform, status, public link to the published post (`url`), platform post id, error message, text, attached media (file name and type) and the latest metrics PostPulse has (`impressions`, `engagements`, `likes`, `shares`, `comments`, `profileClicks`, `lastUpdatedTime`). A metric the platform does not report is absent. Metrics of published posts are refreshed from the platform on each call.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `postId` | number | Yes | Post id from `list_posts` or `schedule_post` |
 
 ## Resources
 
