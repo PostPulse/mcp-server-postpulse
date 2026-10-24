@@ -26,6 +26,8 @@ import { listChatsTool, handleListChats } from './tools/list_chats';
 import { uploadMediaTool, handleUploadMedia } from './tools/upload_media';
 import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
 import { connectAccountTool, handleConnectAccount, CONNECTABLE_PLATFORMS_TEXT } from './tools/connect_account';
+import { listPostsTool, handleListPosts } from './tools/list_posts';
+import { getPostTool, handleGetPost } from './tools/get_post';
 
 // Import resources
 import { listAccountsResource, handleListAccountsResource } from './resources/accounts';
@@ -68,7 +70,12 @@ Connecting accounts:
 - Never claim an account is connected before list_accounts shows it. If it does not appear, ask the user what the browser page said (for example an account limit or "already used" message) and, if needed, get a fresh link.
 - An account with needsReauthorization: true must be reconnected with connect_account(accountId) before posting to it.
 - Telegram cannot be connected from the chat: connect_account returns instructions for the PostPulse website instead of a link.
-- connect_account with FACEBOOK connects Facebook Pages: the user picks the Pages on the PostPulse page, and each becomes its own FACEBOOK_PAGE account.`,
+- connect_account with FACEBOOK connects Facebook Pages: the user picks the Pages on the PostPulse page, and each becomes its own FACEBOOK_PAGE account.
+
+Reading posts:
+- list_posts lists the user's posts in a date range (at most 93 days per call): id, status, scheduled time, platforms and text.
+- get_post returns one post's outcome on each account: status, public link (url), error and the latest metrics. Call it per post when the user asks for links, failures or performance.
+- Metrics are those PostPulse collects for posts it published; a metric the platform does not report is absent, not zero.`,
         },
     );
 
@@ -132,6 +139,32 @@ Connecting accounts:
             openWorldHint: false,
         },
     }, handleSchedulePost);
+
+    server.registerTool(listPostsTool.name, {
+        title: 'List Posts',
+        description: listPostsTool.description,
+        inputSchema: listPostsTool.inputSchema,
+        annotations: {
+            title: 'List Posts',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleListPosts);
+
+    server.registerTool(getPostTool.name, {
+        title: 'Get Post',
+        description: getPostTool.description,
+        inputSchema: getPostTool.inputSchema,
+        annotations: {
+            title: 'Get Post',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleGetPost);
 
     server.registerTool(connectAccountTool.name, {
         title: 'Connect Social Account',
