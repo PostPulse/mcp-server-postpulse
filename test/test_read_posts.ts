@@ -81,7 +81,10 @@ const tests: Array<[string, () => Promise<void>]> = [
                     posts: [{
                         id: 100, platformPostIdentifier: '1790', permalink: 'https://www.instagram.com/reel/DAbC/', content: 'Both',
                         media: [{ key: 'a.mp4', url: 'https://s3/presigned', filename: 'a.mp4', contentType: 'video/mp4' }],
-                        metrics: { likes: 12, comments: 3, shares: 1, lastUpdatedTime: '2026-10-24T10:00:00Z' },
+                        metrics: {
+                            likes: 12, comments: 3, shares: 1, lastUpdatedTime: '2026-10-24T10:00:00Z',
+                            platformAnalytics: { reach: 640, saved: 7 },
+                        },
                     }],
                 },
                 {
@@ -98,7 +101,10 @@ const tests: Array<[string, () => Promise<void>]> = [
             posts: [{
                 id: 100, url: 'https://www.instagram.com/reel/DAbC/', platformPostId: '1790', content: 'Both',
                 media: [{ filename: 'a.mp4', contentType: 'video/mp4' }],
-                metrics: { likes: 12, comments: 3, shares: 1, lastUpdatedTime: '2026-10-24T10:00:00Z' },
+                metrics: {
+                    likes: 12, comments: 3, shares: 1, lastUpdatedTime: '2026-10-24T10:00:00Z',
+                    platformAnalytics: { reach: 640, saved: 7 },
+                },
             }],
         });
         assert.equal(post.publications[1].posts[0].error, 'Video too short');

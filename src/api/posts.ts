@@ -43,6 +43,8 @@ interface ApiMetrics {
     comments?: number;
     profileClicks?: number;
     lastUpdatedTime?: string;
+    // The platform's own fields, passed through as is: keys vary by platform and post type.
+    platformAnalytics?: Record<string, unknown> | null;
 }
 
 /** Compact view of a post in a list: one row per post, across all its platforms. */

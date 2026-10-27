@@ -4,7 +4,7 @@ import { ApiPost, toPostDetails } from '../api/posts';
 
 export const getPostTool = {
     name: 'get_post',
-    description: 'Get one post (by the id from list_posts or schedule_post) with its outcome on each account: platform, status, public link to the published post (url), platform post id, error message if it failed, text, attached media, and the latest metrics PostPulse has for it (impressions, engagements, likes, shares, comments, profileClicks, lastUpdatedTime; a metric is absent when the platform does not report it). Metrics of published posts are refreshed from the platform on this call.',
+    description: 'Get one post (by the id from list_posts or schedule_post) with its outcome on each account: platform, status, public link to the published post (url), platform post id, error message if it failed, text, attached media, and the latest metrics PostPulse has for it: impressions, engagements, likes, shares, comments and profileClicks, common to all platforms (a metric is null when the platform does not report it), lastUpdatedTime, and platformAnalytics: the platform\'s own analytics for the post under the platform\'s field names, e.g. view_count on TikTok or views and quotes on Threads. Its fields depend on the platform and the post type, so do not expect a fixed set; it is null when the platform reports none. Metrics of published posts are refreshed from the platform on this call.',
     inputSchema: z.object({
         postId: z.coerce.number().describe('The post id from list_posts or schedule_post'),
     }),
