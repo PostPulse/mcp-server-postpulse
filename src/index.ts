@@ -75,7 +75,8 @@ Connecting accounts:
 Reading posts:
 - list_posts lists the user's posts in a date range (at most 93 days per call): id, status, scheduled time, platforms and text.
 - get_post returns one post's outcome on each account: status, public link (url), error and the latest metrics. Call it per post when the user asks for links, failures or performance.
-- Metrics are those PostPulse collects for posts it published; a metric the platform does not report is absent, not zero.`,
+- Metrics are those PostPulse collects for posts it published; a metric the platform does not report is null, not zero.
+- metrics.platformAnalytics holds the platform's own analytics fields for the post, named as the platform names them (the platform is the publication's platform). Use it for questions the common metrics cannot answer, such as reach, saves or watch time. Its fields vary by platform and post type, and some platforms report them with a delay of a day or more.`,
         },
     );
 

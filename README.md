@@ -191,7 +191,13 @@ List posts scheduled or published in a date range (by scheduled time), oldest fi
 
 ### `get_post`
 
-Get one post with its outcome on each account: platform, status, public link to the published post (`url`), platform post id, error message, text, attached media (file name and type) and the latest metrics PostPulse has (`impressions`, `engagements`, `likes`, `shares`, `comments`, `profileClicks`, `lastUpdatedTime`). A metric the platform does not report is absent. Metrics of published posts are refreshed from the platform on each call.
+Get one post with its outcome on each account: platform, status, public link to the published post (`url`), platform post id, error message, text, attached media (file name and type) and the latest metrics PostPulse has:
+
+- `impressions`, `engagements`, `likes`, `shares`, `comments` and `profileClicks`, common to all platforms. A metric the platform does not report is `null`;
+- `lastUpdatedTime`;
+- `platformAnalytics`: the platform's own analytics for the post under the platform's field names, e.g. `view_count` on TikTok or `views` and `quotes` on Threads. Its fields depend on the platform and the post type, so do not expect a fixed set. It is `null` when the platform reports none.
+
+Metrics of published posts are refreshed from the platform on each call.
 
 **Parameters:**
 | Name | Type | Required | Description |
