@@ -80,7 +80,7 @@ const tests: Array<[string, () => Promise<void>]> = [
                     id: 10, socialMediaAccountId: 7, accountUsername: 'jane', platformName: 'INSTAGRAM', status: 'COMPLETED',
                     posts: [{
                         id: 100, platformPostIdentifier: '1790', permalink: 'https://www.instagram.com/reel/DAbC/', content: 'Both',
-                        media: [{ key: 'a.mp4', url: 'https://s3/presigned', filename: 'a.mp4', contentType: 'video/mp4' }],
+                        media: [{ key: 'a.mp4', path: 'user-1/a.mp4', url: 'https://s3/presigned', filename: 'clip.mp4', contentType: 'video/mp4' }],
                         metrics: {
                             likes: 12, comments: 3, shares: 1, lastUpdatedTime: '2026-10-24T10:00:00Z',
                             platformAnalytics: { reach: 640, saved: 7 },
@@ -97,10 +97,10 @@ const tests: Array<[string, () => Promise<void>]> = [
         const post = JSON.parse(result.content[0].text);
         assert.equal(post.status, 'PARTIALLY_COMPLETED');
         assert.deepEqual(post.publications[0], {
-            accountId: 7, platform: 'INSTAGRAM', username: 'jane', status: 'COMPLETED',
+            publicationId: 10, accountId: 7, platform: 'INSTAGRAM', username: 'jane', status: 'COMPLETED',
             posts: [{
                 id: 100, url: 'https://www.instagram.com/reel/DAbC/', platformPostId: '1790', content: 'Both',
-                media: [{ filename: 'a.mp4', contentType: 'video/mp4' }],
+                media: [{ key: 'user-1/a.mp4', filename: 'clip.mp4', contentType: 'video/mp4' }],
                 metrics: {
                     likes: 12, comments: 3, shares: 1, lastUpdatedTime: '2026-10-24T10:00:00Z',
                     platformAnalytics: { reach: 640, saved: 7 },

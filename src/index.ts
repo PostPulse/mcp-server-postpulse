@@ -28,6 +28,8 @@ import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
 import { connectAccountTool, handleConnectAccount, CONNECTABLE_PLATFORMS_TEXT } from './tools/connect_account';
 import { listPostsTool, handleListPosts } from './tools/list_posts';
 import { getPostTool, handleGetPost } from './tools/get_post';
+import { deletePostTool, handleDeletePost } from './tools/delete_post';
+import { deleteMediaTool, handleDeleteMedia } from './tools/delete_media';
 
 // Import resources
 import { listAccountsResource, handleListAccountsResource } from './resources/accounts';
@@ -76,7 +78,12 @@ Reading posts:
 - list_posts lists the user's posts in a date range (at most 93 days per call): id, status, scheduled time, platforms and text.
 - get_post returns one post's outcome on each account: status, public link (url), error and the latest metrics. Call it per post when the user asks for links, failures or performance.
 - Metrics are those PostPulse collects for posts it published; a metric the platform does not report is null, not zero.
-- metrics.platformAnalytics holds the platform's own analytics fields for the post, named as the platform names them (the platform is the publication's platform). Use it for questions the common metrics cannot answer, such as reach, saves or watch time. Its fields vary by platform and post type, and some platforms report them with a delay of a day or more.`,
+- metrics.platformAnalytics holds the platform's own analytics fields for the post, named as the platform names them (the platform is the publication's platform). Use it for questions the common metrics cannot answer, such as reach, saves or watch time. Its fields vary by platform and post type, and some platforms report them with a delay of a day or more.
+
+Deleting:
+- delete_post and delete_media cannot be undone: say what will be deleted and get the user's confirmation first.
+- delete_post removes the post from PostPulse only, unless deleteFromPlatform is true: without it the post stays live on the social network, so tell the user.
+- Deleting a post leaves its media files in the library. To remove those too, call get_post first for the media keys (it stops working once the post is deleted), then delete_post, then delete_media for each key.`,
         },
     );
 
@@ -166,6 +173,32 @@ Reading posts:
             openWorldHint: false,
         },
     }, handleGetPost);
+
+    server.registerTool(deletePostTool.name, {
+        title: 'Delete Post',
+        description: deletePostTool.description,
+        inputSchema: deletePostTool.inputSchema,
+        annotations: {
+            title: 'Delete Post',
+            readOnlyHint: false,
+            destructiveHint: true,
+            idempotentHint: true,
+            openWorldHint: true,
+        },
+    }, handleDeletePost);
+
+    server.registerTool(deleteMediaTool.name, {
+        title: 'Delete Media',
+        description: deleteMediaTool.description,
+        inputSchema: deleteMediaTool.inputSchema,
+        annotations: {
+            title: 'Delete Media',
+            readOnlyHint: false,
+            destructiveHint: true,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleDeleteMedia);
 
     server.registerTool(connectAccountTool.name, {
         title: 'Connect Social Account',

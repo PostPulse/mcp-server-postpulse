@@ -31,7 +31,8 @@ interface ApiPublishedPost {
     permalink?: string;
     errorMessage?: string;
     content?: string;
-    media?: Array<{ filename?: string; contentType?: string }>;
+    // `path` is the same key upload_media returns; the API's own `key` is only its last segment.
+    media?: Array<{ path?: string; filename?: string; contentType?: string }>;
     metrics?: ApiMetrics;
 }
 
@@ -65,6 +66,7 @@ export interface PostDetails {
     status: string;
     scheduledTime?: string;
     publications: Array<{
+        publicationId: number;
         accountId: number;
         platform: string;
         username?: string;
@@ -76,7 +78,7 @@ export interface PostDetails {
             chatId?: string;
             content?: string;
             error?: string;
-            media: Array<{ filename?: string; contentType?: string }>;
+            media: Array<{ key?: string; filename?: string; contentType?: string }>;
             metrics?: ApiMetrics;
         }>;
     }>;
@@ -98,6 +100,7 @@ export function toPostDetails(post: ApiPost): PostDetails {
         status: post.overallStatus,
         scheduledTime: post.scheduledTime,
         publications: (post.publications ?? []).map((pub) => ({
+            publicationId: pub.id,
             accountId: pub.socialMediaAccountId,
             platform: pub.platformName,
             username: pub.accountUsername,
@@ -109,7 +112,7 @@ export function toPostDetails(post: ApiPost): PostDetails {
                 chatId: p.chatId,
                 content: p.content,
                 error: p.errorMessage,
-                media: (p.media ?? []).map((m) => ({ filename: m.filename, contentType: m.contentType })),
+                media: (p.media ?? []).map((m) => ({ key: m.path, filename: m.filename, contentType: m.contentType })),
                 metrics: p.metrics,
             })),
         })),
