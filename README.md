@@ -10,6 +10,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 - **Media management** — Upload images and videos via URL or binary data for use in posts
 - **Account management** — List and manage all connected social media accounts
 - **Read your posts** — List posts by date range and get each post's per-platform status, public link, error and metrics
+- **Delete posts and media** — Permanently delete a post or one account's publication of it, optionally on the social network too, and files from the media library
 - **Connect social accounts from the chat** — Get a secure link to connect or reconnect an account without opening the PostPulse app
 - **OAuth 2.0 authentication** — Secure access via Auth0-based token verification
 - **Streamable HTTP transport** — Modern MCP transport protocol for reliable communication
@@ -191,7 +192,7 @@ List posts scheduled or published in a date range (by scheduled time), oldest fi
 
 ### `get_post`
 
-Get one post with its outcome on each account: platform, status, public link to the published post (`url`), platform post id, error message, text, attached media (file name and type) and the latest metrics PostPulse has:
+Get one post with its outcome on each account: `publicationId` (for `delete_post`), platform, status, public link to the published post (`url`), platform post id, error message, text, attached media (`key` for `delete_media`, file name and type) and the latest metrics PostPulse has:
 
 - `impressions`, `engagements`, `likes`, `shares`, `comments` and `profileClicks`, common to all platforms. A metric the platform does not report is `null`;
 - `lastUpdatedTime`;
@@ -203,6 +204,33 @@ Metrics of published posts are refreshed from the platform on each call.
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `postId` | number | Yes | Post id from `list_posts` or `schedule_post` |
+
+### `delete_post`
+
+Permanently delete a post from PostPulse with its results and metrics, in any status. This cannot be undone, so the tool is marked destructive and its description tells the agent to get the user's confirmation first. Media files stay in the library (see `delete_media`).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `postId` | number | Yes | Post id from `list_posts`, `get_post` or `schedule_post` |
+| `publicationId` | number | No | Delete only this account's publication (`publicationId` in `get_post`). Deleting the last one deletes the whole post |
+| `deleteFromPlatform` | boolean | No | Also delete the published post on the social network. Default `false`: what is published stays there |
+
+**Refusals** (nothing is deleted in PostPulse):
+- `post_in_progress`: the post is being published or, for one publication, its media is still being imported. Try again when that finishes.
+- `platform_deletion_not_supported`: `deleteFromPlatform` is strict, and these `platforms` cannot delete the post. No platform was called.
+- `platform_deletion_failed`: a platform call failed. Posts already removed from other platforms stay removed, and retrying is safe.
+
+Which platforms support `deleteFromPlatform` is listed in the [API documentation](https://post-pulse.com/api-docs).
+
+### `delete_media`
+
+Permanently delete a file from the media library and storage. A post that is not published yet is deleted on the accounts where it is left without the media the platform requires or without any content; a published or failed post stays and only loses the attachment. What is already published stays on the social network. If a post using the file is being published, the tool returns `post_in_progress` and nothing is deleted.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `key` | string | Yes | Media key from `upload_media` or `media[].key` in `get_post`, not the file name. An unknown key is not reported as an error |
 
 ## Resources
 
