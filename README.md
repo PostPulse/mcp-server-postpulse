@@ -230,7 +230,7 @@ Permanently delete a file from the media library and storage. A post that is not
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `key` | string | Yes | Media key from `upload_media` or `media[].key` in `get_post`, not the file name. An unknown key is not reported as an error |
+| `key` | string | Yes | Media key from `upload_media` or `media[].key` in `get_post`, not the file name |
 
 ## Resources
 

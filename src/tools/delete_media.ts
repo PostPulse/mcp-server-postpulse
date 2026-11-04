@@ -5,7 +5,7 @@ export const deleteMediaTool = {
     name: 'delete_media',
     description: 'Permanently delete a file from the user\'s PostPulse media library and storage. This cannot be undone: tell the user what will be deleted and get their confirmation first. It changes every post that uses the file: a post that is not published yet is deleted on the accounts where it is left without the media the platform requires or without any content; a published or failed post stays and only loses the attachment. What is already published stays on the social network. Error code post_in_progress means a post using the file is being published and nothing was deleted: try again when publishing finishes.',
     inputSchema: z.object({
-        key: z.string().min(1).describe('The media key from upload_media or from media[].key in get_post, not the file name. An unknown key is not reported as an error, so pass it exactly'),
+        key: z.string().min(1).describe('The media key from upload_media or from media[].key in get_post, not the file name'),
     }),
 };
 
