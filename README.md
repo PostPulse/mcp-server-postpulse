@@ -222,7 +222,7 @@ MCP clients that support OAuth can register automatically via **Dynamic Client R
 
 ### Pre-Registered Client Credentials
 
-If you already have client credentials created through the [PostPulse Developer Portal](https://developers.post-pulse.com), you can configure your MCP client to use them directly instead of DCR. Pass your `client_id` and `client_secret` in the OAuth authorization code flow against the PostPulse authorization server.
+If you already have client credentials created through the [PostPulse Developer Portal](https://post-pulse.com/app/portal/apps), you can configure your MCP client to use them directly instead of DCR. Pass your `client_id` and `client_secret` in the OAuth authorization code flow against the PostPulse authorization server.
 
 ## HTTP Endpoints
 
