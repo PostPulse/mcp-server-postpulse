@@ -32,7 +32,7 @@
   ],
   "author": "PostPulse",
   "license": "MIT",
-  "homepage": "https://developers.post-pulse.com",
+  "homepage": "https://post-pulse.com/mcp-server",
   "type": "commonjs",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
