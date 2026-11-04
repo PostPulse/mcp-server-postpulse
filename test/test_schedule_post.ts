@@ -17,7 +17,9 @@ const mockPost = async (url: string, body: any) => {
 };
 
 (clientModule as any).createApiClient = () => ({
-    post: mockPost
+    post: mockPost,
+    // schedule_post checks the account id against list_accounts first
+    get: async () => ({ data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((id) => ({ id, platform: 'ANY' })) }),
 });
 
 async function runTests() {

@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { createApiClient } from '../api/client';
+import { ApiAccount, unknownAccountMessage } from '../api/accounts';
 
 export const schedulePostTool = {
     name: 'schedule_post',
     description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook and Facebook Page (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, Pinterest, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts (if the user has no account for the platform, use connect_account first), a platform identifier, and a scheduledTime in ISO-8601 format. For an account whose platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (Page ID, Channel ID or Board ID) and pass it as facebookPageId, telegramChannelId or pinterestBoardId respectively. A FACEBOOK_PAGE account is one Facebook Page (connect_account creates these for Facebook): post to it directly, without list_chats or facebookPageId. Pinterest posts require media (1 image, 1 video, or 2-5 images). Optionally attach media from upload_media via mediaPaths, set publication type, title, topic tag, or Pin link/alt text depending on the platform.',
     inputSchema: z.object({
-        accountId: z.coerce.number().describe('The account ID from list_accounts'),
+        accountId: z.coerce.number().int().positive().describe('The account ID from list_accounts'),
         platform: z.string().describe('The account\'s platform exactly as list_accounts returned it (e.g. INSTAGRAM, FACEBOOK, FACEBOOK_PAGE, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, PINTEREST, X_TWITTER)'),
         content: z.string().optional().describe('Post content text'),
         mediaPaths: z.array(z.string().describe('Media key returned by upload_media')).optional().describe('Optional array of media keys from upload_media'),
@@ -47,6 +48,13 @@ export async function handleSchedulePost(args: any, extra: any) {
     const client = createApiClient(token, clientId);
 
     try {
+        // 0. The account must be one of the user's: agents send ids from an earlier conversation or of
+        // a disconnected account, which the API rejects with a bare "Invalid social media account id".
+        const accounts = (await client.get<ApiAccount[]>('/v1/accounts')).data;
+        if (!accounts.some((acc) => acc.id === accountId)) {
+            return { content: [{ type: 'text' as const, text: unknownAccountMessage(accountId, accounts) }], isError: true };
+        }
+
         // 1. Determine API Type
         let apiType = platform;
         if (platform === 'TIKTOK') {

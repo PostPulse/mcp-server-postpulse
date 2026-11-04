@@ -25,3 +25,18 @@ export function toAccountSummary(acc: ApiAccount): AccountSummary {
         needsReauthorization: Boolean(acc.needsReauthorization),
     };
 }
+
+/** Platforms whose accounts publish to a destination picked with list_chats (Page, channel/chat, board). */
+export const CHAT_PLATFORMS = ['FACEBOOK', 'TELEGRAM', 'PINTEREST'];
+
+/**
+ * Error text for an accountId that is not one of the user's accounts: an id the agent made up (0),
+ * remembered from an earlier conversation, or of an account that was disconnected. Lists the
+ * current accounts so the agent can retry without another call.
+ */
+export function unknownAccountMessage(accountId: number, accounts: ApiAccount[]): string {
+    const current = accounts.length === 0
+        ? 'The user has no connected accounts: use connect_account first.'
+        : `Current accounts: ${accounts.map((acc) => `${acc.id} (${acc.platform}${acc.accountUsername ? ` @${acc.accountUsername}` : ''})`).join(', ')}.`;
+    return `Error: account ${accountId} is not one of the user's connected accounts (it may have been disconnected, or the id is from an earlier list_accounts). Use an id from list_accounts. ${current}`;
+}
