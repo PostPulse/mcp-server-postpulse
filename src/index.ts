@@ -73,7 +73,7 @@ Important notes:
 - For an account whose platform in list_accounts is TELEGRAM, FACEBOOK or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (channel/chat ID, Page ID or board ID), then pass it as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. list_chats only works for these three platforms. Always pass an account's platform to schedule_post exactly as list_accounts returned it.
 - A FACEBOOK_PAGE account is one Facebook Page (connect_account creates FACEBOOK_PAGE accounts for Facebook): schedule_post to it directly, without list_chats or facebookPageId.
 - For Pinterest, attach media (1 image, 1 video, or 2-5 images); title, link, altText and boardSectionId are optional.
-- upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array.
+- upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array. A long import returns its import id and state instead: call upload_media again with importId, and do not start it again.
 - mediaData works only for files up to about ${MAX_BASE64_FILE_KB} KB, because a request to this server is limited to ${MAX_BODY_KB} KB. Never try it for a video. ${LARGE_FILE_GUIDANCE}
 - Do not ask the user to shrink a file just to upload it: a platform's size limits come back as schedule_post errors.
 

@@ -32,7 +32,7 @@ function reset() {
         if (url === '/v1/media/upload/import') return { data: { id: 42 } };
         return { data: { url: SIGNED_UPLOAD_URL, key: 'user-1/key.png', headers: {} } };
     };
-    get = () => ({ data: { state: 'COMPLETED', s3Key: 'user-1/imported.mp4', sourceUrl: SIGNED_URL, totalBytes: 5000 } });
+    get = () => ({ data: { state: 'READY', s3Key: 'user-1/imported.mp4', sourceUrl: SIGNED_URL, totalBytes: 5000 } });
     put = () => ({ status: 200 });
 }
 
@@ -55,7 +55,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(line.tool, 'upload_media');
         assert.equal(line.mode, 'url');
         assert.equal(line.sizeBytes, 5000);
-        assert.equal(line.state, 'COMPLETED');
+        assert.equal(line.state, 'READY');
         assert.equal(line.outcome, 'ok');
         assert.equal(line.clientId, 'client-1');
         assert.equal(line.sub, 'auth0|user-1');

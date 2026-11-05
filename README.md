@@ -152,9 +152,12 @@ Upload a media file for use in scheduled posts. Supports two modes: importing fr
 | `mediaUrl` | string | No | Public URL of the media file to import |
 | `mediaData` | string | No | Base64-encoded content of a file up to about 75 KB |
 | `mediaType` | string | No | MIME type (e.g., `image/jpeg`, `image/png`). Required when using `mediaData` |
-| `mediaName` | string | No | Filename for the uploaded media |
+| `mediaName` | string | No | File name with a media extension (e.g., `clip.mp4`). Needed with `mediaData`, and with `mediaUrl` when the URL does not end in such a name |
+| `importId` | number | No | Id of an import reported as still running, to keep waiting for it |
 
-Either `mediaUrl` or both `mediaData` and `mediaType` must be provided.
+One of `mediaUrl`, both `mediaData` and `mediaType`, or `importId` must be provided.
+
+**Long imports:** a call waits about 50 seconds. An import that takes longer keeps running on the server, and the call returns its id and state instead of a media key. Call `upload_media` again with `importId` to keep waiting; do not start the import again.
 
 **File size:** a request to this server is limited to 100 KB, and base64 data travels inside the request, so `mediaData` fits only files up to about 75 KB. A larger request gets a `413` with a JSON-RPC error that explains the options. For a larger file:
 
