@@ -28,14 +28,15 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
             // means an unrecognised state ends the loop instead of spinning forever.
             let state = 'QUEUED';
             let mediaPath = '';
+            // FAILED_TEMPORARY is in flight too: the backend retries it until READY or FAILED_PERMANENT.
             while (state === 'QUEUED' || state === 'DOWNLOADING'
-                || state === 'VALIDATING' || state === 'UPLOADING') {
+                || state === 'VALIDATING' || state === 'UPLOADING' || state === 'FAILED_TEMPORARY') {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 const statusRes = await client.get(`/v1/media/upload/import/${importId}`);
                 state = statusRes.data.state;
                 mediaPath = statusRes.data.s3Key;
 
-                if (state === 'FAILED_TEMPORARY' || state === 'FAILED_PERMANENT') {
+                if (state === 'FAILED_PERMANENT') {
                     const detail = statusRes.data.errorMessage || statusRes.data.errorCode || 'unknown error';
                     throw new Error(`Media import failed (${state}): ${detail}`);
                 }
