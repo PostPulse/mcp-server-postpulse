@@ -19,11 +19,20 @@ import { logger } from './logger';
 import { tokenVerifier } from './auth/token_verifier';
 import { RedisEventStore } from './store/redis_event_store';
 import { SERVER_VERSION } from './version';
+import {
+    authThenParseBody,
+    bodyTooLargeHandler,
+    LARGE_FILE_GUIDANCE,
+    MAX_BASE64_FILE_KB,
+    MAX_BODY_KB,
+    MEDIA_GALLERY_URL,
+} from './body_limit';
 
 // Import tools
 import { listAccountsTool, handleListAccounts } from './tools/list_accounts';
 import { listChatsTool, handleListChats } from './tools/list_chats';
 import { uploadMediaTool, handleUploadMedia } from './tools/upload_media';
+import { listMediaTool, handleListMedia } from './tools/list_media';
 import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
 import { connectAccountTool, handleConnectAccount, CONNECTABLE_PLATFORMS_TEXT } from './tools/connect_account';
 import { listPostsTool, handleListPosts } from './tools/list_posts';
@@ -53,7 +62,7 @@ function createMcpServer() {
 Typical workflow:
 1. Call list_accounts to discover the user's connected social media accounts and their IDs.
 2. If list_accounts returns no account for the platform the user wants, call connect_account to connect one, then call list_accounts again.
-3. If the user wants to post media, call upload_media first to upload the image or video. Use the returned media key in the next step.
+3. If the user wants to post media, get its media key for the next step: call list_media for a file already in the user's PostPulse library, or upload_media for a file with a public URL.
 4. Call schedule_post with the account ID, platform, content, optional media keys, and a scheduled time in ISO-8601 format.
 
 Important notes:
@@ -65,6 +74,8 @@ Important notes:
 - A FACEBOOK_PAGE account is one Facebook Page (connect_account creates FACEBOOK_PAGE accounts for Facebook): schedule_post to it directly, without list_chats or facebookPageId.
 - For Pinterest, attach media (1 image, 1 video, or 2-5 images); title, link, altText and boardSectionId are optional.
 - upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array.
+- mediaData works only for files up to about ${MAX_BASE64_FILE_KB} KB, because a request to this server is limited to ${MAX_BODY_KB} KB. Never try it for a video. ${LARGE_FILE_GUIDANCE}
+- Do not ask the user to shrink a file just to upload it: a platform's size limits come back as schedule_post errors.
 
 Connecting accounts:
 - Signing in to this server creates the PostPulse account, so a new user starts with no social accounts. An empty list_accounts result is normal, not an error.
@@ -134,6 +145,19 @@ Deleting:
             openWorldHint: false,
         },
     }, handleUploadMedia);
+
+    server.registerTool(listMediaTool.name, {
+        title: 'List Media',
+        description: listMediaTool.description,
+        inputSchema: listMediaTool.inputSchema,
+        annotations: {
+            title: 'List Media',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleListMedia);
 
     server.registerTool(schedulePostTool.name, {
         title: 'Schedule Post',
@@ -234,7 +258,7 @@ Deleting:
 Steps:
 1. Call list_accounts to find my connected accounts. If there is no account for the platform, call connect_account, show me the link and wait for me to finish, then call list_accounts again.
 2. If the account's platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, call list_chats for that account to get the publishing destination (Page, Channel or Board). Any other platform, including FACEBOOK_PAGE (already one Page), skips this step.
-3. If I need to attach media, call upload_media with the image/video URL first.
+3. If I need to attach media, get its media key: call list_media for a file already in my PostPulse library, or upload_media with the image/video URL. If the file has no public URL, ask me to upload it at ${MEDIA_GALLERY_URL}, then call list_media and find it by file name.
 4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
                 },
             }],
@@ -282,7 +306,6 @@ const transports = new Map<string, StreamableHTTPServerTransport>();
 // ─── Express App ─────────────────────────────────────────────────────────────
 
 const app = express();
-app.use(express.json());
 app.use(
     cors({
         origin: '*',
@@ -462,14 +485,9 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 // The root path handles both POST (init/messages) and GET (SSE)
-app.use((req, res, next) => {
-    // Only apply auth to POST requests (initialization and subsequent messages)
-    // GET requests (SSE) are authorized by the session ID itself (which was created with auth)
-    if (req.method === 'POST') {
-        return authMiddleware(req, res, next);
-    }
-    next();
-});
+// Auth and body parsing apply only to POST requests (initialization and subsequent messages)
+// GET requests (SSE) are authorized by the session ID itself (which was created with auth)
+app.use(authThenParseBody(authMiddleware));
 
 app.all('/', handleMcp);
 app.all('/sse', handleMcp);
@@ -485,6 +503,7 @@ app.use((req, res) => {
 });
 
 Sentry.setupExpressErrorHandler(app);
+app.use(bodyTooLargeHandler);
 
 app.listen(config.PORT, config.HOST, () => {
     logger.info(`🚀 PostPulse MCP Server: http://${config.HOST}:${config.PORT}`);

@@ -94,6 +94,7 @@ export function createTokenVerifier(cfg: Config) {
                         ? (payload.scope as string).split(' ')
                         : [],
                     expiresAt: payload.exp,
+                    extra: { sub: payload.sub },
                 };
             } catch (error: any) {
                 logger.error(`[auth] JWT verification failed: ${error.message}`);
