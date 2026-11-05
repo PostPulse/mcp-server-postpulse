@@ -11,7 +11,7 @@ export const MAX_BASE64_FILE_KB = 75;
 export const MEDIA_GALLERY_URL = 'https://post-pulse.com/app/gallery';
 
 /** The way out for a file too large for base64. Shared by the tool texts and the 413 answer. */
-export const LARGE_FILE_GUIDANCE = `A file with a public URL goes through mediaUrl of upload_media. Otherwise ask the user to upload it at ${MEDIA_GALLERY_URL}, call list_media, find the file by its name and pass its key to schedule_post in mediaPaths.`;
+export const LARGE_FILE_GUIDANCE = 'A file with a public URL goes through mediaUrl of upload_media. Otherwise call create_upload_link, show the user the link and wait until they say they are done, then call get_upload_link and pass the file keys to schedule_post in mediaPaths.';
 
 /**
  * Gate for POST requests: the token first and the body only after it, so a request without a valid token
