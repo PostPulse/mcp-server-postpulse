@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "postpulse",
+  "version": "1.2.0",
+  "description": "Schedule posts, upload media and read post status across Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, Pinterest, X, Bluesky and Telegram.",
+  "author": {
+    "name": "PostPulse",
+    "url": "https://post-pulse.com"
+  },
+  "homepage": "https://post-pulse.com/mcp-server",
+  "repository": "https://github.com/PostPulse/mcp-server-postpulse",
+  "license": "MIT",
+  "keywords": ["social-media", "scheduling", "instagram", "tiktok", "youtube", "linkedin", "mcp"]
+}
