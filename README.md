@@ -7,7 +7,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 ## Features
 
 - **Multi-platform posting** — Schedule posts to 10 social media platforms from a single interface
-- **Media management** — Upload images and videos via URL or binary data for use in posts
+- **Media management** — Find files in the media library, import images and videos by URL, or upload small files as base64
 - **Account management** — List and manage all connected social media accounts
 - **Read your posts** — List posts by date range and get each post's per-platform status, public link, error and metrics
 - **Delete posts and media** — Permanently delete a post or one account's publication of it, optionally on the social network too, and files from the media library
@@ -144,17 +144,34 @@ Only supports accounts whose platform is `FACEBOOK`, `TELEGRAM` or `PINTEREST`. 
 
 ### `upload_media`
 
-Upload media files (images, videos) for use in scheduled posts. Supports two modes: importing from a public URL (with automatic processing) or uploading binary data directly as base64. Returns a media key to reference in `schedule_post`.
+Upload a media file for use in scheduled posts. Supports two modes: importing from a public URL (with automatic processing) or uploading a small file directly as base64. Returns a media key to reference in `schedule_post`.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `mediaUrl` | string | No | Public URL of the media file to import |
-| `mediaData` | string | No | Base64-encoded media file content |
-| `mediaType` | string | No | MIME type (e.g., `image/jpeg`, `video/mp4`). Required when using `mediaData` |
+| `mediaData` | string | No | Base64-encoded content of a file up to about 75 KB |
+| `mediaType` | string | No | MIME type (e.g., `image/jpeg`, `image/png`). Required when using `mediaData` |
 | `mediaName` | string | No | Filename for the uploaded media |
 
 Either `mediaUrl` or both `mediaData` and `mediaType` must be provided.
+
+**File size:** a request to this server is limited to 100 KB, and base64 data travels inside the request, so `mediaData` fits only files up to about 75 KB. A larger request gets a `413` with a JSON-RPC error that explains the options. For a larger file:
+
+1. If it has a public URL, pass it in `mediaUrl`.
+2. Otherwise upload it at https://post-pulse.com/app/gallery, then call `list_media`, find the file by its name and pass its key to `schedule_post`.
+
+### `list_media`
+
+List the files in the media library, newest first. Use it to find a file uploaded on the PostPulse website by its name and pass its key to `schedule_post`. A file uploaded with `mediaData` appears a few minutes later, but its key from `upload_media` works at once.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `page` | number | No | Page number, from 0. Default `0` |
+| `size` | number | No | Files per page, 1-50. Default `20` |
+
+**Returns:** a JSON object with `items` (`key`, `filename`, `contentType`, `sizeBytes`), `page`, `size`, `totalItems` and `totalPages`. An empty library also gets a hint with the gallery link.
 
 ### `schedule_post`
 
@@ -166,7 +183,7 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | `accountId` | number | Yes | Account ID from `list_accounts` |
 | `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `PINTEREST`, `X_TWITTER`, `BLUE_SKY` |
 | `content` | string | No | Post text/caption |
-| `mediaPaths` | string[] | No | Media keys returned by `upload_media` |
+| `mediaPaths` | string[] | No | Media keys from `list_media` or `upload_media` |
 | `scheduledTime` | string | Yes | ISO-8601 timestamp (e.g., `2025-01-15T10:00:00Z`) |
 | `facebookPageId` | string | **Yes** (Facebook) | Facebook Page ID from `list_chats`. Required when platform is `FACEBOOK` |
 | `telegramChannelId` | string | **Yes** (Telegram) | Telegram Channel/Chat ID from `list_chats`. Required when platform is `TELEGRAM` |
@@ -230,7 +247,7 @@ Permanently delete a file from the media library and storage. A post that is not
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `key` | string | Yes | Media key from `upload_media` or `media[].key` in `get_post`, not the file name |
+| `key` | string | Yes | Media key from `list_media`, `upload_media` or `media[].key` in `get_post`, not the file name |
 
 ## Resources
 
@@ -256,7 +273,7 @@ If you already have client credentials created through the [PostPulse Developer 
 
 | Path | Purpose |
 |---|---|
-| `POST /`, `POST /sse` | MCP Streamable HTTP transport (initialize + messages), Bearer token required |
+| `POST /`, `POST /sse` | MCP Streamable HTTP transport (initialize + messages), Bearer token required. The body is parsed only after the token check and is limited to 100 KB; a larger one gets `413` with a JSON-RPC error |
 | `GET /`, `GET /sse` with `Mcp-Session-Id` | SSE stream for an existing session |
 | `GET /`, `GET /sse` with `Accept: text/html` | Minimal landing page for browsers and crawlers (links to the setup guide and API docs). Any other `Accept` without a session still gets `400` |
 | `GET /health` | Health check (`ok`) |
@@ -272,11 +289,23 @@ A typical interaction with the PostPulse MCP server:
 
 1. **List accounts** to find connected social media profiles
 2. **Connect an account** (if the platform is missing) with `connect_account`
-3. **Upload media** (optional) to prepare images or videos
+3. **Get a media key** (optional): find a file with `list_media`, or import one by URL with `upload_media`
 4. **Schedule a post** with content, media, and a future publish time
 
 ```
 User: "Schedule an Instagram reel for tomorrow at 9am with the video at https://example.com/video.mp4 and caption 'Check this out!'"
+```
+
+### A video without a public URL
+
+A video is too large for `mediaData`, so it goes through the media library:
+
+```
+User:      "Post my new reel to Instagram tomorrow at 9:00 UTC. The file is on my computer."
+Assistant: "Please upload the video at https://post-pulse.com/app/gallery and tell me the file name."
+User:      "Done, it's reel-42.mp4"
+Assistant: list_media → { items: [{ key: "<user>/<id>.mp4", filename: "reel-42.mp4", ... }], ... }
+           schedule_post(accountId: 123, platform: INSTAGRAM, mediaPaths: ["<user>/<id>.mp4"], publicationType: REELS, scheduledTime: ...)
 ```
 
 ### First run (new user)

@@ -130,6 +130,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(info.clientId, 'client-123');
         assert.deepEqual(info.scopes, ['openid', 'postpulse-api/api']);
         assert.equal(typeof info.expiresAt, 'number');
+        assert.equal(typeof info.extra.sub, 'string');
         assert.equal(eu.hits, 0);
     }],
     ['EU off: an EU-key token is rejected and the EU JWKS is never fetched, even with half of the EU set configured', async () => {
