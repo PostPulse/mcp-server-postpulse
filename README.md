@@ -7,7 +7,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 ## Features
 
 - **Multi-platform posting** — Schedule posts to 10 social media platforms from a single interface
-- **Media management** — Find files in the media library, import images and videos by URL, or upload small files as base64
+- **Media management** — Find files in the media library, import images and videos by URL, give the user a link to upload files from their device, or upload small files as base64
 - **Account management** — List and manage all connected social media accounts
 - **Read your posts** — List posts by date range and get each post's per-platform status, public link, error and metrics
 - **Delete posts and media** — Permanently delete a post or one account's publication of it, optionally on the social network too, and files from the media library
@@ -162,11 +162,40 @@ One of `mediaUrl`, both `mediaData` and `mediaType`, or `importId` must be provi
 **File size:** a request to this server is limited to 100 KB, and base64 data travels inside the request, so `mediaData` fits only files up to about 75 KB. A larger request gets a `413` with a JSON-RPC error that explains the options. For a larger file:
 
 1. If it has a public URL, pass it in `mediaUrl`.
-2. Otherwise upload it at https://post-pulse.com/app/gallery, then call `list_media`, find the file by its name and pass its key to `schedule_post`.
+2. Otherwise call `create_upload_link`, and after the user has uploaded it, `get_upload_link` for its key.
+
+### `create_upload_link`
+
+Get a link that lets the user upload files from their device to their PostPulse media library in a browser, with no login. Use it for a file without a public URL, including a file attached to the chat, which does not reach this server. The tool does not wait for the upload: once the user says they are done, call `get_upload_link`.
+
+**Parameters:** none.
+
+**Returns:** the link, when it expires, the steps for the user, and the `uploadLinkId` for `get_upload_link`.
+
+**Behaviour:**
+- The link takes several files until it expires. The page shows whose PostPulse library the files go to.
+- It must not be shared: whoever has the link can add files to this PostPulse library. For this reason the tool never writes the link to a log.
+- If too many links are requested, the tool asks to wait and try again.
+
+### `get_upload_link`
+
+List the files uploaded through a link from `create_upload_link`. Use it instead of `list_media` to get exactly these files, without knowing their names.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `uploadLinkId` | string | Yes | The `uploadLinkId` from `create_upload_link`, not the link itself |
+
+**Returns:** a JSON object with `expiresAt` and `files` (`key`, `filename`, `contentType`, `sizeBytes`, `status`), followed by what to do next.
+
+**Behaviour:**
+- Show the user the file names and ask them to confirm before scheduling, because whoever has the link can add files. Then pass the keys of `CONFIRMED` files to `schedule_post`.
+- A `PENDING` file may still be finishing: check again after the user says it is uploaded. A `REJECTED` file cannot be used.
+- An empty list means the user has not finished: ask them, do not poll.
 
 ### `list_media`
 
-List the files in the media library, newest first. Use it to find a file uploaded on the PostPulse website by its name and pass its key to `schedule_post`. A file uploaded with `mediaData` appears a few minutes later, but its key from `upload_media` works at once.
+List the files in the media library, newest first. Use it to find a file already in the library, such as one uploaded on the PostPulse website at https://post-pulse.com/app/gallery, by its name and pass its key to `schedule_post`. A file uploaded with `mediaData` appears a few minutes later, but its key from `upload_media` works at once.
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -186,7 +215,7 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | `accountId` | number | Yes | Account ID from `list_accounts` |
 | `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `PINTEREST`, `X_TWITTER`, `BLUE_SKY` |
 | `content` | string | No | Post text/caption |
-| `mediaPaths` | string[] | No | Media keys from `list_media` or `upload_media` |
+| `mediaPaths` | string[] | No | Media keys from `list_media`, `upload_media` or `get_upload_link` |
 | `scheduledTime` | string | Yes | ISO-8601 timestamp (e.g., `2025-01-15T10:00:00Z`) |
 | `facebookPageId` | string | **Yes** (Facebook) | Facebook Page ID from `list_chats`. Required when platform is `FACEBOOK` |
 | `telegramChannelId` | string | **Yes** (Telegram) | Telegram Channel/Chat ID from `list_chats`. Required when platform is `TELEGRAM` |
@@ -250,7 +279,7 @@ Permanently delete a file from the media library and storage. A post that is not
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `key` | string | Yes | Media key from `list_media`, `upload_media` or `media[].key` in `get_post`, not the file name |
+| `key` | string | Yes | Media key from `list_media`, `upload_media`, `get_upload_link` or `media[].key` in `get_post`, not the file name |
 
 ## Resources
 
@@ -292,7 +321,7 @@ A typical interaction with the PostPulse MCP server:
 
 1. **List accounts** to find connected social media profiles
 2. **Connect an account** (if the platform is missing) with `connect_account`
-3. **Get a media key** (optional): find a file with `list_media`, or import one by URL with `upload_media`
+3. **Get a media key** (optional): find a file with `list_media`, import one by URL with `upload_media`, or give the user a link with `create_upload_link`
 4. **Schedule a post** with content, media, and a future publish time
 
 ```
@@ -301,14 +330,17 @@ User: "Schedule an Instagram reel for tomorrow at 9am with the video at https://
 
 ### A video without a public URL
 
-A video is too large for `mediaData`, so it goes through the media library:
+A video is too large for `mediaData`, so the user uploads it in a browser, with no login:
 
 ```
 User:      "Post my new reel to Instagram tomorrow at 9:00 UTC. The file is on my computer."
-Assistant: "Please upload the video at https://post-pulse.com/app/gallery and tell me the file name."
-User:      "Done, it's reel-42.mp4"
-Assistant: list_media → { items: [{ key: "<user>/<id>.mp4", filename: "reel-42.mp4", ... }], ... }
-           schedule_post(accountId: 123, platform: INSTAGRAM, mediaPaths: ["<user>/<id>.mp4"], publicationType: REELS, scheduledTime: ...)
+Assistant: create_upload_link → link, uploadLinkId
+           "Open this link, add the video, and tell me when the page says it is uploaded."
+User:      "Done"
+Assistant: get_upload_link(uploadLinkId) → { files: [{ key: "<user>/<id>.mp4", filename: "reel-42.mp4", status: "CONFIRMED", ... }], ... }
+           "I got reel-42.mp4. Is this the right file?"
+User:      "Yes"
+Assistant: schedule_post(accountId: 123, platform: INSTAGRAM, mediaPaths: ["<user>/<id>.mp4"], publicationType: REELS, scheduledTime: ...)
 ```
 
 ### First run (new user)

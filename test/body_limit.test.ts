@@ -92,8 +92,8 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(typeof body.error.code, 'number');
         assert.match(body.error.message, new RegExp(`${MAX_BODY_KB} KB`));
         assert.match(body.error.message, /mediaUrl/);
-        assert.match(body.error.message, /https:\/\/post-pulse\.com\/app\/gallery/);
-        assert.match(body.error.message, /list_media/);
+        assert.match(body.error.message, /create_upload_link/);
+        assert.match(body.error.message, /get_upload_link/);
     }],
     ['a body over the limit leaves a warning with its size and client, and without any content', async () => {
         const body = oversized();
