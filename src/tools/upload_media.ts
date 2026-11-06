@@ -11,6 +11,12 @@ const IMPORT_POLL_INTERVAL_MS = 2000;
 export const IMPORT_WAIT_MS = 50_000;
 /** A status read close to the deadline still gets a moment to answer. */
 const IMPORT_MIN_READ_TIMEOUT_MS = 2000;
+/**
+ * The answer to a 400 on the import request. This tool is what puts mediaName into the API's filenameHint, so it answers
+ * for itself and no text of the API matters. The API also answers 400 to a good name when it refuses the URL itself
+ * (it cannot parse it, or it is too long), so the second sentence keeps the agent from changing a name that is fine.
+ */
+const IMPORT_REFUSED = 'mediaName must be a file name with a media extension (e.g. photo.jpg, clip.mp4) when the URL does not end in one. If the name is fine, the URL itself was refused: it may be malformed or too long.';
 
 export const uploadMediaTool = {
     name: 'upload_media',
@@ -126,13 +132,15 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
 
     } catch (error: any) {
         log('failed', error.response?.status);
+        // No import id yet means the import request itself failed. A 400 on a status read is about that import, and its text stays.
+        if (mode === 'url' && !currentImportId && error.response?.status === 400) {
+            return { content: [{ type: 'text' as const, text: `Error: ${IMPORT_REFUSED}` }], isError: true };
+        }
         // A timeout or a 5xx says nothing about the import itself, and starting it again would duplicate it.
         const undecided = currentImportId && !importEnded && (!error.response || error.response.status >= 500);
         const checkHint = undecided ? ` The import may still be running: call upload_media with importId ${currentImportId} to check, and do not start it again.` : '';
-        // The API's errors name its own field, and the input of this tool for it is mediaName.
-        const detail = error.response?.data ? JSON.stringify(error.response.data).replace(/filenameHint/g, 'mediaName') : '';
         return {
-            content: [{ type: 'text' as const, text: `Error: ${error.message} ${detail}${checkHint}` }],
+            content: [{ type: 'text' as const, text: `Error: ${error.message} ${error.response?.data ? JSON.stringify(error.response.data) : ''}${checkHint}` }],
             isError: true,
         };
     }
