@@ -100,14 +100,17 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(line.mode, 'none');
         assert.equal(line.outcome, 'invalid_input');
     }],
-    ['texts: base64 states its limit and sends larger files to mediaUrl or an upload link', async () => {
+    ['texts: base64 states its limit, and every way to a key is named with no order and no ban', async () => {
         const { description, inputSchema } = uploadMediaTool;
         assert.match(description, /about 75 KB/);
-        assert.match(description, /Never try mediaData for a video/);
+        assert.match(description, /list_media/);
+        assert.match(description, /post-pulse\.com\/app\/gallery by a person or by an agent with a browser/);
         assert.match(description, /mediaUrl/);
         assert.match(description, /create_upload_link/);
         assert.match(description, /get_upload_link/);
+        assert.match(description, /whichever you can use/);
         assert.match(description, /Do not ask the user to shrink/);
+        assert.doesNotMatch(description, /Never try|Otherwise|show the user the link/i);
         assert.match(inputSchema.shape.mediaData.description ?? '', /about 75 KB/);
         assert.doesNotMatch(inputSchema.shape.mediaType.description ?? '', /video/);
     }],

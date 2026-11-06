@@ -10,8 +10,15 @@ export const MAX_BASE64_FILE_KB = 75;
 
 export const MEDIA_GALLERY_URL = 'https://post-pulse.com/app/gallery';
 
-/** The way out for a file too large for base64. Shared by the tool texts and the 413 answer. */
-export const LARGE_FILE_GUIDANCE = 'A file with a public URL goes through mediaUrl of upload_media. Otherwise call create_upload_link, show the user the link and wait until they say they are done, then call get_upload_link and pass the file keys to schedule_post in mediaPaths.';
+/** What an upload link is, as a fact: the agent decides from it whether it can use the page itself. */
+export const UPLOAD_LINK_PAGE = 'It is a plain HTTPS page with no login: whoever can open it, a person or an agent with a browser or HTTP access, can add files.';
+
+/**
+ * Every way to get a media key, on equal terms: the agent picks by what it can do. Models read these texts as rules, so a
+ * closed list ("A, otherwise B") bans whatever it leaves out, and a text meant for a chat turns an agent with a shell into
+ * a courier of links. Shared by the tool texts and the 413 answer.
+ */
+export const MEDIA_KEY_WAYS = `A media key comes from any of these, whichever you can use: list_media, for a file already in the PostPulse library, including one added at ${MEDIA_GALLERY_URL} by a person or by an agent with a browser where the user is logged in; upload_media with mediaUrl, for a file at a public URL; upload_media with mediaData, for a file up to about ${MAX_BASE64_FILE_KB} KB; create_upload_link, for a link to an upload page, then get_upload_link for the keys of the files added there. ${UPLOAD_LINK_PAGE}`;
 
 /**
  * Gate for POST requests: the token first and the body only after it, so a request without a valid token
@@ -58,7 +65,7 @@ export const bodyTooLargeHandler: ErrorRequestHandler = (err, req, res, next) =>
         jsonrpc: '2.0',
         error: {
             code: -32000,
-            message: `The request is over this server's ${MAX_BODY_KB} KB limit and was not processed. mediaData of upload_media fits only files up to about ${MAX_BASE64_FILE_KB} KB. ${LARGE_FILE_GUIDANCE}`,
+            message: `The request is over this server's ${MAX_BODY_KB} KB limit and was not processed. mediaData of upload_media fits only files up to about ${MAX_BASE64_FILE_KB} KB. ${MEDIA_KEY_WAYS}`,
         },
         id: null,
     });

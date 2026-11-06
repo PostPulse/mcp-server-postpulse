@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createApiClient } from '../api/client';
+import { UPLOAD_LINK_PAGE } from '../body_limit';
 import { logger } from '../logger';
 
 const UPLOAD_LINKS_PATH = '/v1/media/upload-links';
@@ -21,13 +22,13 @@ interface ApiUploadLinkStatus {
 
 export const createUploadLinkTool = {
     name: 'create_upload_link',
-    description: 'Get a link that lets the user upload files from their device to their PostPulse media library in a browser, with no login. Use it for a file without a public URL, including a file attached to this chat: an attachment does not reach this server. One link takes several files. Show the link to the user and wait. The tool does not wait for the upload: after the user says they are done, call get_upload_link with the uploadLinkId to get the media keys.',
+    description: `Get a link to an upload page that adds files to the user's PostPulse media library. ${UPLOAD_LINK_PAGE} One link takes several files. A file attached to a chat does not reach this server, but can go through this page. The tool does not wait for the upload: get_upload_link with the uploadLinkId lists the files that have arrived, with their media keys.`,
     inputSchema: z.object({}),
 };
 
 export const getUploadLinkTool = {
     name: 'get_upload_link',
-    description: 'List the files uploaded through a link from create_upload_link: key, file name, content type, size in bytes and status, plus when the link expires. Call it once the user says they are done, not in a loop. Show the user the file names and ask them to confirm before scheduling, then pass the keys to schedule_post in mediaPaths.',
+    description: 'List the files added through a link from create_upload_link: key, file name, content type, size in bytes and status, plus when the link expires. Pass the keys of CONFIRMED files to schedule_post in mediaPaths. If someone else added the files, first show them the file names and ask them to confirm, because whoever has the link can add files. Files you added yourself need no confirmation.',
     inputSchema: z.object({
         // Strict on purpose: the id goes into the request path and the log, and an agent may paste the link itself, which is a secret.
         uploadLinkId: z.string().uuid().describe('The uploadLinkId returned by create_upload_link, not the link itself'),
@@ -57,6 +58,8 @@ function buildLinkText(url: string, expiresAt: string): string {
         `[Upload files to PostPulse](${url})`,
         url,
         '',
+        // Only for a person: an agent that adds the files itself has no one to show this to.
+        'For a person opening this link:',
         'Open the link in a browser and add your files; no login is needed. The page shows whose PostPulse library the files go to: continue only if it is yours.',
         // The API sends nanoseconds, which mean nothing to the person reading this.
         `The link takes new files until ${expiresAt.replace(/\.\d+Z$/, 'Z')}. If it has expired, ask me for a new one.`,
@@ -81,7 +84,7 @@ export async function handleCreateUploadLink(_args: any, extra: any) {
         return {
             content: [
                 { type: 'text' as const, text: buildLinkText(url, expiresAt) },
-                { type: 'text' as const, text: `uploadLinkId: ${id}\nShow the user the link in full, including the part after #, with the text above. Then wait until they say they are done, and call get_upload_link with this uploadLinkId. Do not call it before that, and do not poll.` },
+                { type: 'text' as const, text: `uploadLinkId: ${id}\nA person who is to add the files needs the link in full, including the part after #, with the text above, and tells you when the page says the files are uploaded. Once the files are added, get_upload_link with this uploadLinkId gives their media keys.` },
             ],
         };
     } catch (error: any) {
@@ -97,17 +100,17 @@ export async function handleCreateUploadLink(_args: any, extra: any) {
     }
 }
 
-/** What the agent should do with the list: this is where the user gets to see what is about to be posted. */
+/** What the agent can do with the list. Files from someone else are where the user gets to see what is about to be posted. */
 function buildStatusGuidance({ expiresAt, files }: ApiUploadLinkStatus): string {
     const expired = Date.parse(expiresAt) <= Date.now();
     if (files.length === 0) {
         return expired
             ? 'No files arrived through this link, and it has expired. If the user still wants to upload, call create_upload_link for a new link.'
-            : 'No files have arrived yet, so the user has not finished. Ask them to tell you when the page says the files are uploaded. Do not poll.';
+            : 'No files have arrived through this link yet. A person adding files tells you when the page says they are uploaded.';
     }
-    const lines = ['Show the user these file names and ask them to confirm the files are theirs before scheduling: whoever has the link can add files. Then pass the keys of CONFIRMED files to schedule_post in mediaPaths.'];
+    const lines = ['Pass the keys of CONFIRMED files to schedule_post in mediaPaths. If someone else added these files, first show them the file names and ask them to confirm the files are theirs: whoever has the link can add files. Files you added yourself need no confirmation.'];
     if (files.some((file) => file.status === 'PENDING')) {
-        lines.push('A PENDING file may still be finishing, so do not use its key yet. Ask the user whether the page shows it as uploaded, then call get_upload_link again.');
+        lines.push('A PENDING file may still be finishing, so do not use its key yet. Call get_upload_link again when its upload has ended.');
     }
     if (files.some((file) => file.status === 'REJECTED')) {
         lines.push('A REJECTED file was refused and cannot be used. Tell the user.');

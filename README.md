@@ -159,27 +159,27 @@ One of `mediaUrl`, both `mediaData` and `mediaType`, or `importId` must be provi
 
 **Long imports:** a call waits about 50 seconds. An import that takes longer keeps running on the server, and the call returns its id and state instead of a media key. Call `upload_media` again with `importId` to keep waiting; do not start the import again.
 
-**File size:** a request to this server is limited to 100 KB, and base64 data travels inside the request, so `mediaData` fits only files up to about 75 KB. A larger request gets a `413` with a JSON-RPC error that explains the options. For a larger file:
+**File size:** a request to this server is limited to 100 KB, and base64 data travels inside the request, so `mediaData` fits only files up to about 75 KB. A larger request gets a `413` with a JSON-RPC error that lists the ways to get a media key.
 
-1. If it has a public URL, pass it in `mediaUrl`.
-2. Otherwise call `create_upload_link`, and after the user has uploaded it, `get_upload_link` for its key.
+**Ways to get a media key,** whichever the agent can use: `list_media` for a file already in the library, including one added at https://post-pulse.com/app/gallery by a person or by an agent with a browser where the user is logged in, `upload_media` with `mediaUrl` for a file at a public URL, `upload_media` with `mediaData` for a very small file, and `create_upload_link` with `get_upload_link` for an upload page.
 
 ### `create_upload_link`
 
-Get a link that lets the user upload files from their device to their PostPulse media library in a browser, with no login. Use it for a file without a public URL, including a file attached to the chat, which does not reach this server. The tool does not wait for the upload: once the user says they are done, call `get_upload_link`.
+Get a link to an upload page that adds files to the user's PostPulse media library. It is a plain HTTPS page with no login: whoever can open it, a person or an agent with a browser or HTTP access, can add files. A file attached to the chat does not reach this server, but can go through this page. The tool does not wait for the upload: `get_upload_link` lists the files that have arrived.
 
 **Parameters:** none.
 
-**Returns:** the link, when it expires, the steps for the user, and the `uploadLinkId` for `get_upload_link`.
+**Returns:** the link, when it expires, the steps for a person opening it, and the `uploadLinkId` for `get_upload_link`.
 
 **Behaviour:**
 - The link takes several files until it expires. The page shows whose PostPulse library the files go to.
+- A person who is to add the files needs the link in full, including the part after `#`.
 - It must not be shared: whoever has the link can add files to this PostPulse library. For this reason the tool never writes the link to a log.
 - If too many links are requested, the tool asks to wait and try again.
 
 ### `get_upload_link`
 
-List the files uploaded through a link from `create_upload_link`. Use it instead of `list_media` to get exactly these files, without knowing their names.
+List the files added through a link from `create_upload_link`. Use it instead of `list_media` to get exactly these files, without knowing their names.
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -189,9 +189,9 @@ List the files uploaded through a link from `create_upload_link`. Use it instead
 **Returns:** a JSON object with `expiresAt` and `files` (`key`, `filename`, `contentType`, `sizeBytes`, `status`), followed by what to do next.
 
 **Behaviour:**
-- Show the user the file names and ask them to confirm before scheduling, because whoever has the link can add files. Then pass the keys of `CONFIRMED` files to `schedule_post`.
-- A `PENDING` file may still be finishing: check again after the user says it is uploaded. A `REJECTED` file cannot be used.
-- An empty list means the user has not finished: ask them, do not poll.
+- Pass the keys of `CONFIRMED` files to `schedule_post`. If someone else added the files, first show them the file names and ask them to confirm, because whoever has the link can add files. Files the agent added itself need no confirmation.
+- A `PENDING` file may still be finishing: check again when its upload has ended. A `REJECTED` file cannot be used.
+- An empty list means nothing has arrived yet.
 
 ### `list_media`
 
@@ -321,7 +321,7 @@ A typical interaction with the PostPulse MCP server:
 
 1. **List accounts** to find connected social media profiles
 2. **Connect an account** (if the platform is missing) with `connect_account`
-3. **Get a media key** (optional): find a file with `list_media`, import one by URL with `upload_media`, or give the user a link with `create_upload_link`
+3. **Get a media key** (optional): find a file with `list_media`, import one by URL with `upload_media`, or add files through a link from `create_upload_link`
 4. **Schedule a post** with content, media, and a future publish time
 
 ```
@@ -330,7 +330,7 @@ User: "Schedule an Instagram reel for tomorrow at 9am with the video at https://
 
 ### A video without a public URL
 
-A video is too large for `mediaData`, so the user uploads it in a browser, with no login:
+A video is too large for `mediaData`, so it goes through an upload page, with no login. An agent that can reach the file and the page adds it itself, and has nothing to confirm. In a plain chat the user does it:
 
 ```
 User:      "Post my new reel to Instagram tomorrow at 9:00 UTC. The file is on my computer."

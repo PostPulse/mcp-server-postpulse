@@ -22,9 +22,10 @@ import { SERVER_VERSION } from './version';
 import {
     authThenParseBody,
     bodyTooLargeHandler,
-    LARGE_FILE_GUIDANCE,
     MAX_BASE64_FILE_KB,
     MAX_BODY_KB,
+    MEDIA_KEY_WAYS,
+    UPLOAD_LINK_PAGE,
 } from './body_limit';
 
 // Import tools
@@ -62,7 +63,7 @@ function createMcpServer() {
 Typical workflow:
 1. Call list_accounts to discover the user's connected social media accounts and their IDs.
 2. If list_accounts returns no account for the platform the user wants, call connect_account to connect one, then call list_accounts again.
-3. If the user wants to post media, get its media key for the next step: call list_media for a file already in the user's PostPulse library, upload_media for a file with a public URL, or create_upload_link for a file on the user's device or attached to this chat.
+3. If the user wants to post media, get its media key for the next step. ${MEDIA_KEY_WAYS}
 4. Call schedule_post with the account ID, platform, content, optional media keys, and a scheduled time in ISO-8601 format.
 
 Important notes:
@@ -74,14 +75,15 @@ Important notes:
 - A FACEBOOK_PAGE account is one Facebook Page (connect_account creates FACEBOOK_PAGE accounts for Facebook): schedule_post to it directly, without list_chats or facebookPageId.
 - For Pinterest, attach media (1 image, 1 video, or 2-5 images); title, link, altText and boardSectionId are optional.
 - upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array. A long import returns its import id and state instead: call upload_media again with importId, and do not start it again.
-- mediaData works only for files up to about ${MAX_BASE64_FILE_KB} KB, because a request to this server is limited to ${MAX_BODY_KB} KB. Never try it for a video. ${LARGE_FILE_GUIDANCE}
+- mediaData works only for files up to about ${MAX_BASE64_FILE_KB} KB, because a request to this server is limited to ${MAX_BODY_KB} KB.
 - Do not ask the user to shrink a file just to upload it: a platform's size limits come back as schedule_post errors.
 
-Uploading files from the chat:
-- A file attached to this chat does not reach this server, and a path or link inside the chat is not a public URL. Offer create_upload_link, not base64 and not a smaller file.
-- create_upload_link returns a link for the browser, with no login, and an uploadLinkId. Show the user the link in full and its warning, then wait until they say they are done.
-- Then call get_upload_link with the uploadLinkId. Show the file names and ask the user to confirm them before scheduling, because whoever has the link can add files. Pass the keys of CONFIRMED files to schedule_post in mediaPaths.
-- A PENDING file may still be finishing, and a REJECTED file cannot be used. An empty list means the user has not finished: ask them, do not poll.
+Upload links:
+- A file attached to a chat does not reach this server, and a local path or a path inside a chat is not a public URL.
+- create_upload_link returns a link and an uploadLinkId. ${UPLOAD_LINK_PAGE} One link takes several files.
+- A person who is to add the files needs the link in full and its warning, and tells you when the page says the files are uploaded.
+- get_upload_link with the uploadLinkId lists the files that have arrived and their keys. Pass the keys of CONFIRMED files to schedule_post in mediaPaths. A PENDING file may still be finishing, a REJECTED file cannot be used, and an empty list means nothing has arrived yet.
+- If someone else added the files, show them the file names and ask them to confirm before scheduling, because whoever has the link can add files. Files you added yourself need no confirmation.
 
 Connecting accounts:
 - Signing in to this server creates the PostPulse account, so a new user starts with no social accounts. An empty list_accounts result is normal, not an error.
@@ -290,7 +292,7 @@ Deleting:
 Steps:
 1. Call list_accounts to find my connected accounts. If there is no account for the platform, call connect_account, show me the link and wait for me to finish, then call list_accounts again.
 2. If the account's platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, call list_chats for that account to get the publishing destination (Page, Channel or Board). Any other platform, including FACEBOOK_PAGE (already one Page), skips this step.
-3. If I need to attach media, get its media key: call list_media for a file already in my PostPulse library, or upload_media with the image/video URL. If the file has no public URL, call create_upload_link, show me the link and wait until I say I am done, then call get_upload_link, show me the file names and ask me to confirm them.
+3. If I need to attach media, get its media key. ${MEDIA_KEY_WAYS} If I am the one adding files through the link, show it to me and wait until I say I am done, then call get_upload_link, show me the file names and ask me to confirm them.
 4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
                 },
             }],

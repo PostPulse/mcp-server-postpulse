@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createApiClient } from '../api/client';
 import axios from 'axios';
-import { LARGE_FILE_GUIDANCE, MAX_BASE64_FILE_KB, MAX_BODY_KB } from '../body_limit';
+import { MAX_BASE64_FILE_KB, MAX_BODY_KB, MEDIA_KEY_WAYS } from '../body_limit';
 import { logger } from '../logger';
 
 /** States in which the backend is still working (its MediaImportState). It retries FAILED_TEMPORARY until READY or FAILED_PERMANENT. */
@@ -20,7 +20,7 @@ const IMPORT_REFUSED = 'mediaName must be a file name with a media extension (e.
 
 export const uploadMediaTool = {
     name: 'upload_media',
-    description: `Upload a media file for use in scheduled posts. Returns a media key string that you pass to the mediaPaths parameter of schedule_post. Two modes: (1) mediaUrl, a public URL to import from the web (the server handles download and processing automatically); (2) base64-encoded mediaData with a mediaType MIME type, only for files up to about ${MAX_BASE64_FILE_KB} KB, because a request to this server is limited to ${MAX_BODY_KB} KB. Never try mediaData for a video. ${LARGE_FILE_GUIDANCE} Do not ask the user to shrink a file just to upload it: a platform's size limits come back as schedule_post errors. An import that takes long returns its import id and state instead of a key: call upload_media again with importId to keep waiting, and do not start the import again.`,
+    description: `Upload a media file for use in scheduled posts. Returns a media key string that you pass to the mediaPaths parameter of schedule_post. Two modes: (1) mediaUrl, a public URL to import from the web (the server handles download and processing automatically); (2) base64-encoded mediaData with a mediaType MIME type, only for files up to about ${MAX_BASE64_FILE_KB} KB, because a request to this server is limited to ${MAX_BODY_KB} KB. ${MEDIA_KEY_WAYS} Do not ask the user to shrink a file just to upload it: a platform's size limits come back as schedule_post errors. An import that takes long returns its import id and state instead of a key: call upload_media again with importId to keep waiting, and do not start the import again.`,
     inputSchema: z.object({
         mediaUrl: z.string().url().optional().describe('Public URL of the media file to import (e.g. https://example.com/photo.jpg). The server downloads and processes the file automatically. Use this OR mediaData, not both.'),
         mediaData: z.string().optional().describe(`Base64-encoded binary content of a file up to about ${MAX_BASE64_FILE_KB} KB; a larger file fails with a 413 error. Must be used together with mediaType. Use this OR mediaUrl, not both.`),

@@ -68,6 +68,7 @@ function onlyLine(tool: string) {
 
 const tests: Array<[string, () => Promise<void>]> = [
     ['create: the result has the link, its expiry, the warning and the uploadLinkId', async () => {
+        // The texts below are pinned on purpose: for a model they are the behaviour of this tool.
         reset();
         const result: any = await handleCreateUploadLink({}, EXTRA);
         assert.equal(result.isError, undefined);
@@ -78,7 +79,19 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.match(text(result), /no login/);
         assert.ok(text(result).includes(`uploadLinkId: ${LINK_ID}`));
         assert.match(text(result), /get_upload_link/);
-        assert.match(text(result), /do not poll/);
+    }],
+    ['create: showing the link is for a person who adds the files, and nothing orders the agent to wait', async () => {
+        reset();
+        const result: any = await handleCreateUploadLink({}, EXTRA);
+        assert.match(result.content[0].text, /For a person opening this link:/);
+        const forAgent = result.content[1].text;
+        assert.match(forAgent, /A person who is to add the files needs the link in full, including the part after #/);
+        assert.doesNotMatch(forAgent, /^Show the user|do not poll|Then wait/im);
+    }],
+    ['create: the description states the page as a fact and orders nothing', async () => {
+        const { description } = createUploadLinkTool;
+        assert.match(description, /plain HTTPS page with no login: whoever can open it, a person or an agent with a browser or HTTP access, can add files/);
+        assert.doesNotMatch(description, /Show the link|and wait\b|from their device/i);
     }],
     ['create: the nanoseconds of the API\'s expiry stay out of the text for the user', async () => {
         reset();
@@ -156,12 +169,19 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(line.files, 1);
         assert.doesNotMatch(JSON.stringify(line), /Reel|e1992700/);
     }],
-    ['get: with files, the agent shows the names and asks to confirm', async () => {
+    ['get: with files, names are confirmed only when someone else added them', async () => {
         reset();
         const guidance = ((await handleGetUploadLink({ uploadLinkId: LINK_ID }, EXTRA)) as any).content[1].text;
-        assert.match(guidance, /file names and ask them to confirm/);
+        assert.match(guidance, /If someone else added these files, first show them the file names and ask them to confirm/);
+        assert.match(guidance, /Files you added yourself need no confirmation/);
         assert.match(guidance, /mediaPaths/);
         assert.doesNotMatch(guidance, /PENDING file|REJECTED file|expired/);
+    }],
+    ['get: the description makes the confirmation conditional too', async () => {
+        const { description } = getUploadLinkTool;
+        assert.match(description, /If someone else added the files/);
+        assert.match(description, /Files you added yourself need no confirmation/);
+        assert.doesNotMatch(description, /not in a loop|once the user says/i);
     }],
     ['get: PENDING waits and REJECTED is not usable, each said only when present', async () => {
         reset();
@@ -175,14 +195,14 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.match(guidance, /REJECTED file was refused and cannot be used/);
         assert.doesNotMatch(guidance, /PENDING file/);
     }],
-    ['get: an empty list means the user has not finished, so ask and do not poll', async () => {
+    ['get: an empty list says nothing has arrived, and does not assume a person is uploading', async () => {
         reset();
         get = () => ({ data: { expiresAt: FUTURE, files: [] } });
         const result: any = await handleGetUploadLink({ uploadLinkId: LINK_ID }, EXTRA);
         assert.equal(result.isError, undefined);
         assert.deepEqual(JSON.parse(result.content[0].text).files, []);
-        assert.match(result.content[1].text, /has not finished/);
-        assert.match(result.content[1].text, /Do not poll/);
+        assert.match(result.content[1].text, /No files have arrived through this link yet/);
+        assert.doesNotMatch(result.content[1].text, /Do not poll|has not finished/);
         assert.doesNotMatch(result.content[1].text, /create_upload_link/);
     }],
     ['get: an expired link points to a new one, and its files stay usable', async () => {
@@ -190,7 +210,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         get = () => ({ data: { expiresAt: PAST, files: [] } });
         let guidance = ((await handleGetUploadLink({ uploadLinkId: LINK_ID }, EXTRA)) as any).content[1].text;
         assert.match(guidance, /has expired.*create_upload_link/);
-        assert.doesNotMatch(guidance, /has not finished/);
+        assert.doesNotMatch(guidance, /have arrived through this link yet/);
 
         get = () => ({ data: { expiresAt: PAST, files: [FILE] } });
         guidance = ((await handleGetUploadLink({ uploadLinkId: LINK_ID }, EXTRA)) as any).content[1].text;
@@ -205,7 +225,7 @@ const tests: Array<[string, () => Promise<void>]> = [
 
         get = () => ({ data: { expiresAt: '2999-01-01T00:00:00.600141667Z', files: [] } });
         guidance = ((await handleGetUploadLink({ uploadLinkId: LINK_ID }, EXTRA)) as any).content[1].text;
-        assert.match(guidance, /has not finished/);
+        assert.match(guidance, /have arrived through this link yet/);
     }],
     ['get: 401, 404 and 429 each say what to do, others surface the API error', async () => {
         const expected: Array<[number, RegExp]> = [
