@@ -67,7 +67,7 @@ Typical workflow:
 Important notes:
 - Always call list_accounts before schedule_post so you have a valid accountId.
 - The scheduledTime must be a future ISO-8601 timestamp (e.g., 2025-06-15T14:00:00Z).
-- For Instagram, Facebook and Facebook Page, you can set publicationType to FEED, REELS, or STORY (defaults to FEED).
+- For Instagram, Facebook and Facebook Page, you can set publicationType to FEED, REELS, or STORY (defaults to FEED). With STORY, each key in mediaPaths becomes its own story, in the order given, within one post and one scheduledTime.
 - For YouTube and TikTok, provide a title for the video.
 - For an account whose platform in list_accounts is TELEGRAM, FACEBOOK or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (channel/chat ID, Page ID or board ID), then pass it as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. list_chats only works for these three platforms. Always pass an account's platform to schedule_post exactly as list_accounts returned it.
 - A FACEBOOK_PAGE account is one Facebook Page (connect_account creates FACEBOOK_PAGE accounts for Facebook): schedule_post to it directly, without list_chats or facebookPageId.

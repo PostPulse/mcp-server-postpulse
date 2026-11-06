@@ -4,19 +4,19 @@ import { ApiAccount, unknownAccountMessage } from '../api/accounts';
 
 export const schedulePostTool = {
     name: 'schedule_post',
-    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook and Facebook Page (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, Pinterest, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts (if the user has no account for the platform, use connect_account first), a platform identifier, and a scheduledTime in ISO-8601 format. For an account whose platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (Page ID, Channel ID or Board ID) and pass it as facebookPageId, telegramChannelId or pinterestBoardId respectively. A FACEBOOK_PAGE account is one Facebook Page (connect_account creates these for Facebook): post to it directly, without list_chats or facebookPageId. Pinterest posts require media (1 image, 1 video, or 2-5 images). Optionally attach media via mediaPaths (keys from list_media, upload_media or get_upload_link), set publication type, title, topic tag, or Pin link/alt text depending on the platform.',
+    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook and Facebook Page (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, Pinterest, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts (if the user has no account for the platform, use connect_account first), a platform identifier, and a scheduledTime in ISO-8601 format. For an account whose platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (Page ID, Channel ID or Board ID) and pass it as facebookPageId, telegramChannelId or pinterestBoardId respectively. A FACEBOOK_PAGE account is one Facebook Page (connect_account creates these for Facebook): post to it directly, without list_chats or facebookPageId. Pinterest posts require media (1 image, 1 video, or 2-5 images). With publicationType STORY, each key in mediaPaths becomes its own story, in the order given, and all of them belong to this one post and its scheduledTime. Optionally attach media via mediaPaths (keys from list_media, upload_media or get_upload_link), set publication type, title, topic tag, or Pin link/alt text depending on the platform.',
     inputSchema: z.object({
         accountId: z.coerce.number().int().positive().describe('The account ID from list_accounts'),
         platform: z.string().describe('The account\'s platform exactly as list_accounts returned it (e.g. INSTAGRAM, FACEBOOK, FACEBOOK_PAGE, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, PINTEREST, X_TWITTER)'),
         content: z.string().optional().describe('Post content text'),
-        mediaPaths: z.array(z.string().describe('Media key from list_media, upload_media or get_upload_link, not the file name')).optional().describe('Optional array of media keys from list_media, upload_media or get_upload_link'),
+        mediaPaths: z.array(z.string().describe('Media key from list_media, upload_media or get_upload_link, not the file name')).optional().describe('Optional array of media keys from list_media, upload_media or get_upload_link. With publicationType STORY, each key is one story of this post'),
         scheduledTime: z.string().describe('ISO-8601 timestamp for scheduling (e.g., 2023-10-27T10:00:00Z).'),
 
         // Platform specific optional fields
         facebookPageId: z.string().optional().describe('Facebook Page ID (required when the account\'s platform is FACEBOOK). Get it from list_chats for the FACEBOOK account. Not used for FACEBOOK_PAGE: the account is the Page'),
         telegramChannelId: z.string().optional().describe('Telegram Channel/Chat ID (required for Telegram). Get it from list_chats for the TELEGRAM account'),
         pinterestBoardId: z.string().optional().describe('Pinterest Board ID (required for Pinterest). Get it from list_chats for the PINTEREST account'),
-        publicationType: z.enum(['FEED', 'REELS', 'STORY']).optional().describe('Publication type for Instagram/Facebook/Facebook Page (default: FEED)'),
+        publicationType: z.enum(['FEED', 'REELS', 'STORY']).optional().describe('Publication type for Instagram/Facebook/Facebook Page (default: FEED). STORY takes one or several media keys'),
         title: z.string().optional().describe('Title for YouTube or TikTok videos, or Pinterest Pins (up to 100 characters)'),
         topicTag: z.string().optional().describe('Topic tag for Threads'),
         link: z.string().optional().describe('Pinterest only: destination URL opened when the Pin is clicked'),
@@ -100,15 +100,21 @@ export async function handleSchedulePost(args: any, extra: any) {
             postData.chatId = pinterestBoardId;
         }
 
-        // Handle Media
+        // Handle Media. The API takes one media per story, and a publication holds any number of stories:
+        // same split as the website (postpulse-fe src/api/posts/normalizers.ts). publicationType is set above
+        // only for the platforms that have it, so STORY sent for another platform splits nothing.
+        const isStory = platformSettings.publicationType === 'STORY';
+        let posts: any[] = [postData];
         if (mediaPaths && mediaPaths.length > 0) {
-            postData.attachmentPaths = mediaPaths;
+            posts = isStory
+                ? mediaPaths.map((mediaPath: string) => ({ ...postData, attachmentPaths: [mediaPath] }))
+                : [{ ...postData, attachmentPaths: mediaPaths }];
         }
 
         // 4. Construct Publication
         const publication = {
             socialMediaAccountId: accountId,
-            posts: [postData],
+            posts,
             platformSettings,
         };
 
@@ -120,7 +126,8 @@ export async function handleSchedulePost(args: any, extra: any) {
         };
 
         const response = await client.post('/v1/posts', body);
-        return { content: [{ type: 'text' as const, text: `Post scheduled successfully (ID: ${response.data.id})` }] };
+        const stories = isStory && posts.length > 1 ? ` with ${posts.length} stories in the order of mediaPaths` : '';
+        return { content: [{ type: 'text' as const, text: `Post scheduled successfully (ID: ${response.data.id})${stories}` }] };
 
     } catch (error: any) {
         return {

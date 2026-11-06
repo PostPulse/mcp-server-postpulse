@@ -221,7 +221,7 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | `accountId` | number | Yes | Account ID from `list_accounts` |
 | `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `PINTEREST`, `X_TWITTER`, `BLUE_SKY` |
 | `content` | string | No | Post text/caption |
-| `mediaPaths` | string[] | No | Media keys from `list_media`, `upload_media` or `get_upload_link` |
+| `mediaPaths` | string[] | No | Media keys from `list_media`, `upload_media` or `get_upload_link`. With `publicationType: STORY`, each key becomes its own story, in the order given, within one post |
 | `scheduledTime` | string | Yes | ISO-8601 timestamp (e.g., `2025-01-15T10:00:00Z`) |
 | `facebookPageId` | string | **Yes** (Facebook) | Facebook Page ID from `list_chats`. Required when platform is `FACEBOOK` |
 | `telegramChannelId` | string | **Yes** (Telegram) | Telegram Channel/Chat ID from `list_chats`. Required when platform is `TELEGRAM` |
