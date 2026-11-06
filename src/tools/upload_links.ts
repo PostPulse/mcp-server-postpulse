@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createApiClient } from '../api/client';
 import { UPLOAD_LINK_PAGE } from '../body_limit';
+import { config } from '../config';
 import { logger } from '../logger';
 
 const UPLOAD_LINKS_PATH = '/v1/media/upload-links';
@@ -22,7 +23,7 @@ interface ApiUploadLinkStatus {
 
 export const createUploadLinkTool = {
     name: 'create_upload_link',
-    description: `Get a link to an upload page that adds files to the user's PostPulse media library. ${UPLOAD_LINK_PAGE} One link takes several files. A file attached to a chat does not reach this server, but can go through this page. The tool does not wait for the upload: get_upload_link with the uploadLinkId lists the files that have arrived, with their media keys.`,
+    description: `Get a link to ${UPLOAD_LINK_PAGE}. The files go to the user's PostPulse media library, and one link takes several files. If you can reach the files the user wants to post, add them yourself. If you cannot, for example with a file attached to a chat, which does not reach this server, give the user the link. The tool does not wait for the upload: get_upload_link with the uploadLinkId lists the files that have arrived, with their media keys.`,
     inputSchema: z.object({}),
 };
 
@@ -68,6 +69,24 @@ function buildLinkText(url: string, expiresAt: string): string {
     ].join('\n');
 }
 
+/**
+ * For the agent, not for the person. These are the routes the page itself uses, so a rename breaks the page as well, and an
+ * agent following a stale text gets a 404 and can still give the user the link.
+ */
+function buildAgentText(id: string): string {
+    const routes = `${config.POSTPULSE_API_URL}${UPLOAD_LINKS_PATH}`;
+    return [
+        `uploadLinkId: ${id}`,
+        'If you can reach the files the user wants to post, add them yourself. With a browser, open the link and use the page. With HTTP access, do this for each file, with no Authorization header. The token is the part of the link after #, and it is a secret.',
+        `1. POST ${routes}/presign with the JSON {"token", "filename", "contentType", "sizeBytes"}. The filename needs a media extension. The answer has url, headers and key.`,
+        '2. PUT the bytes of the file to url, with those headers.',
+        `3. POST ${routes}/confirm with the JSON {"token", "key"}. Until then the file stays PENDING.`,
+        'A 429 means too many requests: wait a minute and go on. If the link refuses more files or has expired, call create_upload_link for a new one.',
+        'If you cannot reach the files, show the user the link in full, including the part after #, with the text above. They tell you when the page says the files are uploaded.',
+        'Either way, get_upload_link with this uploadLinkId then gives the media keys.',
+    ].join('\n');
+}
+
 export async function handleCreateUploadLink(_args: any, extra: any) {
     const token = extra?.authInfo?.token || '';
     const clientId = extra?.authInfo?.clientId || '';
@@ -84,7 +103,7 @@ export async function handleCreateUploadLink(_args: any, extra: any) {
         return {
             content: [
                 { type: 'text' as const, text: buildLinkText(url, expiresAt) },
-                { type: 'text' as const, text: `uploadLinkId: ${id}\nA person who is to add the files needs the link in full, including the part after #, with the text above, and tells you when the page says the files are uploaded. Once the files are added, get_upload_link with this uploadLinkId gives their media keys.` },
+                { type: 'text' as const, text: buildAgentText(id) },
             ],
         };
     } catch (error: any) {
@@ -110,7 +129,7 @@ function buildStatusGuidance({ expiresAt, files }: ApiUploadLinkStatus): string 
     }
     const lines = ['Pass the keys of CONFIRMED files to schedule_post in mediaPaths. If someone else added these files, first show them the file names and ask them to confirm the files are theirs: whoever has the link can add files. Files you added yourself need no confirmation.'];
     if (files.some((file) => file.status === 'PENDING')) {
-        lines.push('A PENDING file may still be finishing, so do not use its key yet. Call get_upload_link again when its upload has ended.');
+        lines.push('A PENDING file may still be finishing, so do not use its key yet. Call get_upload_link again when its upload has ended. A file you added over HTTP stays PENDING until its confirm call.');
     }
     if (files.some((file) => file.status === 'REJECTED')) {
         lines.push('A REJECTED file was refused and cannot be used. Tell the user.');

@@ -95,7 +95,8 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.match(body.error.message, /mediaUrl/);
         assert.match(body.error.message, /create_upload_link/);
         assert.match(body.error.message, /get_upload_link/);
-        assert.match(body.error.message, /a person or an agent with a browser or HTTP access/);
+        assert.match(body.error.message, /a person or an agent with a browser can add files/);
+        assert.match(body.error.message, /the steps for an agent with only HTTP access/);
         assert.doesNotMatch(body.error.message, /Otherwise|show the user the link/i);
     }],
     ['a body over the limit leaves a warning with its size and client, and without any content', async () => {

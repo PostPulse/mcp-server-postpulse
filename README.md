@@ -161,15 +161,21 @@ One of `mediaUrl`, both `mediaData` and `mediaType`, or `importId` must be provi
 
 **File size:** a request to this server is limited to 100 KB, and base64 data travels inside the request, so `mediaData` fits only files up to about 75 KB. A larger request gets a `413` with a JSON-RPC error that lists the ways to get a media key.
 
-**Ways to get a media key,** whichever the agent can use: `list_media` for a file already in the library, including one added at https://post-pulse.com/app/gallery by a person or by an agent with a browser where the user is logged in, `upload_media` with `mediaUrl` for a file at a public URL, `upload_media` with `mediaData` for a very small file, and `create_upload_link` with `get_upload_link` for an upload page.
+**Ways to get a media key,** whichever the agent can use. An agent that can reach the files adds them itself, and the user has nothing to upload by hand.
+
+- `list_media`: a file already in the library.
+- The gallery at https://post-pulse.com/app/gallery: a person, or an agent with a browser where the user is logged in, adds files there, then `list_media` gives their keys.
+- `create_upload_link`: a link to a plain HTTPS page with no login, where a person or an agent with a browser can add files. The result also gives the steps for an agent with only HTTP access. `get_upload_link` then gives the keys of those files.
+- `upload_media` with `mediaUrl`: a file at a public URL.
+- `upload_media` with `mediaData`: a file up to about 75 KB.
 
 ### `create_upload_link`
 
-Get a link to an upload page that adds files to the user's PostPulse media library. It is a plain HTTPS page with no login: whoever can open it, a person or an agent with a browser or HTTP access, can add files. A file attached to the chat does not reach this server, but can go through this page. The tool does not wait for the upload: `get_upload_link` lists the files that have arrived.
+Get a link to a plain HTTPS page with no login, where a person or an agent with a browser can add files to the user's PostPulse media library. The result also gives the steps for an agent with only HTTP access. An agent that can reach the files adds them itself. An agent that cannot, for example with a file attached to a chat, which does not reach this server, gives the user the link. The tool does not wait for the upload: `get_upload_link` lists the files that have arrived.
 
 **Parameters:** none.
 
-**Returns:** the link, when it expires, the steps for a person opening it, and the `uploadLinkId` for `get_upload_link`.
+**Returns:** the link, when it expires, the steps for a person opening it, the steps for an agent over HTTP (`presign`, `PUT`, `confirm`), and the `uploadLinkId` for `get_upload_link`.
 
 **Behaviour:**
 - The link takes several files until it expires. The page shows whose PostPulse library the files go to.
@@ -190,7 +196,7 @@ List the files added through a link from `create_upload_link`. Use it instead of
 
 **Behaviour:**
 - Pass the keys of `CONFIRMED` files to `schedule_post`. If someone else added the files, first show them the file names and ask them to confirm, because whoever has the link can add files. Files the agent added itself need no confirmation.
-- A `PENDING` file may still be finishing: check again when its upload has ended. A `REJECTED` file cannot be used.
+- A `PENDING` file may still be finishing: check again when its upload has ended. A file added over HTTP stays `PENDING` until its `confirm` call. A `REJECTED` file cannot be used.
 - An empty list means nothing has arrived yet.
 
 ### `list_media`

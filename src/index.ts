@@ -22,10 +22,8 @@ import { SERVER_VERSION } from './version';
 import {
     authThenParseBody,
     bodyTooLargeHandler,
-    MAX_BASE64_FILE_KB,
     MAX_BODY_KB,
     MEDIA_KEY_WAYS,
-    UPLOAD_LINK_PAGE,
 } from './body_limit';
 
 // Import tools
@@ -63,7 +61,7 @@ function createMcpServer() {
 Typical workflow:
 1. Call list_accounts to discover the user's connected social media accounts and their IDs.
 2. If list_accounts returns no account for the platform the user wants, call connect_account to connect one, then call list_accounts again.
-3. If the user wants to post media, get its media key for the next step. ${MEDIA_KEY_WAYS}
+3. If the user wants to post media, get its media key for the next step: see "Getting a media key" below.
 4. Call schedule_post with the account ID, platform, content, optional media keys, and a scheduled time in ISO-8601 format.
 
 Important notes:
@@ -75,13 +73,14 @@ Important notes:
 - A FACEBOOK_PAGE account is one Facebook Page (connect_account creates FACEBOOK_PAGE accounts for Facebook): schedule_post to it directly, without list_chats or facebookPageId.
 - For Pinterest, attach media (1 image, 1 video, or 2-5 images); title, link, altText and boardSectionId are optional.
 - upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array. A long import returns its import id and state instead: call upload_media again with importId, and do not start it again.
-- mediaData works only for files up to about ${MAX_BASE64_FILE_KB} KB, because a request to this server is limited to ${MAX_BODY_KB} KB.
-- Do not ask the user to shrink a file just to upload it: a platform's size limits come back as schedule_post errors.
 
-Upload links:
+Getting a media key:
+- ${MEDIA_KEY_WAYS}
 - A file attached to a chat does not reach this server, and a local path or a path inside a chat is not a public URL.
-- create_upload_link returns a link and an uploadLinkId. ${UPLOAD_LINK_PAGE} One link takes several files.
-- A person who is to add the files needs the link in full and its warning, and tells you when the page says the files are uploaded.
+- mediaData fits only small files because a request to this server is limited to ${MAX_BODY_KB} KB.
+- One upload link takes several files.
+- If you cannot reach the files yourself, give the user the link from create_upload_link in full, with its warning. They tell you when the page says the files are uploaded.
+- Do not ask the user to shrink a file just to upload it: a platform's size limits come back as schedule_post errors.
 - get_upload_link with the uploadLinkId lists the files that have arrived and their keys. Pass the keys of CONFIRMED files to schedule_post in mediaPaths. A PENDING file may still be finishing, a REJECTED file cannot be used, and an empty list means nothing has arrived yet.
 - If someone else added the files, show them the file names and ask them to confirm before scheduling, because whoever has the link can add files. Files you added yourself need no confirmation.
 
@@ -292,7 +291,7 @@ Deleting:
 Steps:
 1. Call list_accounts to find my connected accounts. If there is no account for the platform, call connect_account, show me the link and wait for me to finish, then call list_accounts again.
 2. If the account's platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, call list_chats for that account to get the publishing destination (Page, Channel or Board). Any other platform, including FACEBOOK_PAGE (already one Page), skips this step.
-3. If I need to attach media, get its media key. ${MEDIA_KEY_WAYS} If I am the one adding files through the link, show it to me and wait until I say I am done, then call get_upload_link, show me the file names and ask me to confirm them.
+3. If I need to attach media, get its media key. ${MEDIA_KEY_WAYS} If you cannot reach my files, give me the link from create_upload_link and wait until I say I am done, then call get_upload_link, show me the file names and ask me to confirm them.
 4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
                 },
             }],

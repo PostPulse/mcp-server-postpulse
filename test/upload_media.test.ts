@@ -104,11 +104,12 @@ const tests: Array<[string, () => Promise<void>]> = [
         const { description, inputSchema } = uploadMediaTool;
         assert.match(description, /about 75 KB/);
         assert.match(description, /list_media/);
-        assert.match(description, /post-pulse\.com\/app\/gallery by a person or by an agent with a browser/);
+        assert.match(description, /post-pulse\.com\/app\/gallery: a person, or an agent with a browser where the user is logged in/);
         assert.match(description, /mediaUrl/);
         assert.match(description, /create_upload_link/);
         assert.match(description, /get_upload_link/);
-        assert.match(description, /whichever you can use/);
+        assert.match(description, /whichever of these you can use/);
+        assert.match(description, /If you can reach the files the user wants to post, add them yourself/);
         assert.match(description, /Do not ask the user to shrink/);
         assert.doesNotMatch(description, /Never try|Otherwise|show the user the link/i);
         assert.match(inputSchema.shape.mediaData.description ?? '', /about 75 KB/);

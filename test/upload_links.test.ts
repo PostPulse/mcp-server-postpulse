@@ -80,17 +80,35 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.ok(text(result).includes(`uploadLinkId: ${LINK_ID}`));
         assert.match(text(result), /get_upload_link/);
     }],
-    ['create: showing the link is for a person who adds the files, and nothing orders the agent to wait', async () => {
+    ['create: the agent adds the files itself if it can, and gives the user the link only if it cannot', async () => {
         reset();
         const result: any = await handleCreateUploadLink({}, EXTRA);
         assert.match(result.content[0].text, /For a person opening this link:/);
         const forAgent = result.content[1].text;
-        assert.match(forAgent, /A person who is to add the files needs the link in full, including the part after #/);
+        assert.match(forAgent, /If you can reach the files the user wants to post, add them yourself/);
+        assert.match(forAgent, /If you cannot reach the files, show the user the link in full, including the part after #/);
         assert.doesNotMatch(forAgent, /^Show the user|do not poll|Then wait/im);
     }],
-    ['create: the description states the page as a fact and orders nothing', async () => {
+    ['create: the steps over HTTP name the routes and carry neither the link nor the token', async () => {
+        reset();
+        const forAgent = ((await handleCreateUploadLink({}, EXTRA)) as any).content[1].text;
+        assert.match(forAgent, /POST https:\/\/\S+\/v1\/media\/upload-links\/presign with the JSON \{"token", "filename", "contentType", "sizeBytes"\}/);
+        assert.match(forAgent, /PUT the bytes of the file to url, with those headers/);
+        assert.match(forAgent, /POST https:\/\/\S+\/v1\/media\/upload-links\/confirm with the JSON \{"token", "key"\}/);
+        assert.match(forAgent, /no Authorization header/);
+        assert.match(forAgent, /A 429 means too many requests/);
+        assert.match(forAgent, /refuses more files or has expired, call create_upload_link/);
+        assert.ok(!forAgent.includes(SECRET));
+        assert.ok(!forAgent.includes(LINK_URL));
+    }],
+    ['create: the description states the page as a fact and depends on what the agent can reach', async () => {
         const { description } = createUploadLinkTool;
-        assert.match(description, /plain HTTPS page with no login: whoever can open it, a person or an agent with a browser or HTTP access, can add files/);
+        assert.match(description, /plain HTTPS page with no login, where a person or an agent with a browser can add files/);
+        // The page does not serve an agent with only curl, so HTTP access is promised only together with the steps.
+        assert.match(description, /the result of create_upload_link also gives the steps for an agent with only HTTP access/);
+        assert.doesNotMatch(description, /browser or HTTP access/);
+        assert.match(description, /If you can reach the files the user wants to post, add them yourself/);
+        assert.match(description, /If you cannot.*give the user the link/);
         assert.doesNotMatch(description, /Show the link|and wait\b|from their device/i);
     }],
     ['create: the nanoseconds of the API\'s expiry stay out of the text for the user', async () => {
@@ -188,6 +206,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         get = () => ({ data: { expiresAt: FUTURE, files: [FILE, { ...FILE, status: 'PENDING' }] } });
         let guidance = ((await handleGetUploadLink({ uploadLinkId: LINK_ID }, EXTRA)) as any).content[1].text;
         assert.match(guidance, /PENDING file may still be finishing/);
+        assert.match(guidance, /stays PENDING until its confirm call/);
         assert.doesNotMatch(guidance, /REJECTED file/);
 
         get = () => ({ data: { expiresAt: FUTURE, files: [FILE, { ...FILE, status: 'REJECTED' }] } });

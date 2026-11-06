@@ -10,15 +10,16 @@ export const MAX_BASE64_FILE_KB = 75;
 
 export const MEDIA_GALLERY_URL = 'https://post-pulse.com/app/gallery';
 
-/** What an upload link is, as a fact: the agent decides from it whether it can use the page itself. */
-export const UPLOAD_LINK_PAGE = 'It is a plain HTTPS page with no login: whoever can open it, a person or an agent with a browser or HTTP access, can add files.';
+/** What an upload link leads to, as a fact: the agent decides from it whether it can use the page itself. */
+export const UPLOAD_LINK_PAGE = 'a plain HTTPS page with no login, where a person or an agent with a browser can add files; the result of create_upload_link also gives the steps for an agent with only HTTP access';
 
 /**
  * Every way to get a media key, on equal terms: the agent picks by what it can do. Models read these texts as rules, so a
  * closed list ("A, otherwise B") bans whatever it leaves out, and a text meant for a chat turns an agent with a shell into
- * a courier of links. Shared by the tool texts and the 413 answer.
+ * a courier of links. The last sentence says so outright: the ways alone can still read as options for a person.
+ * Shared by the tool texts and the 413 answer.
  */
-export const MEDIA_KEY_WAYS = `A media key comes from any of these, whichever you can use: list_media, for a file already in the PostPulse library, including one added at ${MEDIA_GALLERY_URL} by a person or by an agent with a browser where the user is logged in; upload_media with mediaUrl, for a file at a public URL; upload_media with mediaData, for a file up to about ${MAX_BASE64_FILE_KB} KB; create_upload_link, for a link to an upload page, then get_upload_link for the keys of the files added there. ${UPLOAD_LINK_PAGE}`;
+export const MEDIA_KEY_WAYS = `A media key comes from whichever of these you can use. list_media: a file already in the PostPulse library. The gallery at ${MEDIA_GALLERY_URL}: a person, or an agent with a browser where the user is logged in, adds files there, then list_media gives their keys. create_upload_link: a link to ${UPLOAD_LINK_PAGE}. get_upload_link then gives the keys of those files. upload_media with mediaUrl: a file at a public URL. upload_media with mediaData: a file up to about ${MAX_BASE64_FILE_KB} KB. If you can reach the files the user wants to post, add them yourself: the user has nothing to upload by hand.`;
 
 /**
  * Gate for POST requests: the token first and the body only after it, so a request without a valid token

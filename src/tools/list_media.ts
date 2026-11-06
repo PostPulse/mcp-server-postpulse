@@ -50,7 +50,7 @@ export async function handleListMedia({ page, size }: { page?: number | null; si
         };
         const content = [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }];
         if (data.totalItems === 0) {
-            content.push({ type: 'text' as const, text: `The media library is empty. The user can upload files at ${MEDIA_GALLERY_URL}.` });
+            content.push({ type: 'text' as const, text: `The media library is empty. Files are added at ${MEDIA_GALLERY_URL} or through create_upload_link.` });
         }
         return { content };
     } catch (error: any) {
