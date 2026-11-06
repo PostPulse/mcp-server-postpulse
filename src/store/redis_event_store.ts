@@ -3,7 +3,8 @@ import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import type { EventStore, StreamId, EventId } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 const KEY_PREFIX = 'mcp:events:';
-const EVENT_TTL_SECONDS = 86400; // 24 hours
+// Every outgoing message is kept here, including tool results with secret links, so only as long as a reconnect needs it.
+const EVENT_TTL_SECONDS = 7200; // 2 hours
 const SEPARATOR = '::';
 
 /**

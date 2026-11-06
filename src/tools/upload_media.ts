@@ -129,8 +129,10 @@ export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaN
         // A timeout or a 5xx says nothing about the import itself, and starting it again would duplicate it.
         const undecided = currentImportId && !importEnded && (!error.response || error.response.status >= 500);
         const checkHint = undecided ? ` The import may still be running: call upload_media with importId ${currentImportId} to check, and do not start it again.` : '';
+        // The API's errors name its own field, and the input of this tool for it is mediaName.
+        const detail = error.response?.data ? JSON.stringify(error.response.data).replace(/filenameHint/g, 'mediaName') : '';
         return {
-            content: [{ type: 'text' as const, text: `Error: ${error.message} ${error.response?.data ? JSON.stringify(error.response.data) : ''}${checkHint}` }],
+            content: [{ type: 'text' as const, text: `Error: ${error.message} ${detail}${checkHint}` }],
             isError: true,
         };
     }

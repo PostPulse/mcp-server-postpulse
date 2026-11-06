@@ -18,12 +18,14 @@ let readUrls: string[] = [];
 let readTimes: number[] = [];
 let readOptions: any[] = [];
 let readError: any;
+let postError: any;
 let logLines: any[] = [];
 
 (logger as any).info = (fields: any) => logLines.push(fields);
 (clientModule as any).createApiClient = () => ({
     post: async (url: string, body: any, options: any) => {
         posts.push({ url, body, options });
+        if (postError) throw postError;
         return { data: { id: 7 } };
     },
     get: async (url: string, options: any) => {
@@ -43,6 +45,7 @@ function reset(next: any[]) {
     readTimes = [];
     readOptions = [];
     readError = undefined;
+    postError = undefined;
     logLines = [];
     now = 1_000_000;
 }
@@ -153,6 +156,21 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(result.isError, true);
         assert.match(result.content[0].text, /not found/);
         assert.doesNotMatch(result.content[0].text, /may still be running/);
+    }],
+    ['an import refused for its file name names the input of this tool, not the field of the API', async () => {
+        for (const error of [
+            'filenameHint is required when a valid media filename cannot be derived from the URL',
+            'Provided filenameHint (photo) is not a valid media file name with extension (e.g., abc.mp4). Could not derive a valid media filename from the URL either',
+        ]) {
+            reset([]);
+            postError = httpError(400, { error });
+            const result: any = await handleUploadMedia({ mediaUrl: 'https://example.com/a', mediaName: 'photo' }, {});
+            assert.equal(result.isError, true);
+            assert.match(result.content[0].text, /mediaName/);
+            assert.doesNotMatch(result.content[0].text, /filenameHint/);
+            assert.doesNotMatch(result.content[0].text, /may still be running/);
+            assert.equal(reads, 0);
+        }
     }],
     ['every API call is bounded by the deadline, and a read near it still gets a moment', async () => {
         reset([{ state: 'DOWNLOADING' }]);
