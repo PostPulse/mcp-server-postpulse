@@ -91,9 +91,13 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(body.id, null);
         assert.equal(typeof body.error.code, 'number');
         assert.match(body.error.message, new RegExp(`${MAX_BODY_KB} KB`));
+        assert.match(body.error.message, /list_media/);
         assert.match(body.error.message, /mediaUrl/);
         assert.match(body.error.message, /create_upload_link/);
         assert.match(body.error.message, /get_upload_link/);
+        assert.match(body.error.message, /a person or an agent with a browser can add files/);
+        assert.match(body.error.message, /the steps for an agent with only HTTP access/);
+        assert.doesNotMatch(body.error.message, /Otherwise|show the user the link/i);
     }],
     ['a body over the limit leaves a warning with its size and client, and without any content', async () => {
         const body = oversized();

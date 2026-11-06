@@ -19,7 +19,7 @@ interface ApiMediaPage {
 
 export const listMediaTool = {
     name: 'list_media',
-    description: `List the files in the user's PostPulse media library, newest first: key, file name, content type and size in bytes. Use it to find a file the user uploaded at ${MEDIA_GALLERY_URL} by its file name, then pass its key to schedule_post in mediaPaths. The list is paged: if the file is not on this page and page + 1 is less than totalPages, call again with the next page. A file uploaded with mediaData appears here a few minutes later, but its key from upload_media works at once.`,
+    description: `List the files in the user's PostPulse media library, newest first: key, file name, content type and size in bytes. Use it to find a file added at ${MEDIA_GALLERY_URL} by its file name, then pass its key to schedule_post in mediaPaths. The list is paged: if the file is not on this page and page + 1 is less than totalPages, call again with the next page. A file uploaded with mediaData appears here a few minutes later, but its key from upload_media works at once.`,
     inputSchema: z.object({
         // Nullish: some clients send null for omitted optional fields, which z.coerce alone would turn into 0.
         page: z.coerce.number().int().min(0).nullish().describe('Page number, from 0. Default: 0'),
@@ -50,7 +50,7 @@ export async function handleListMedia({ page, size }: { page?: number | null; si
         };
         const content = [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }];
         if (data.totalItems === 0) {
-            content.push({ type: 'text' as const, text: `The media library is empty. The user can upload files at ${MEDIA_GALLERY_URL}.` });
+            content.push({ type: 'text' as const, text: `The media library is empty. Files are added at ${MEDIA_GALLERY_URL} or through create_upload_link.` });
         }
         return { content };
     } catch (error: any) {
