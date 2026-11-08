@@ -17,6 +17,7 @@ import Redis from 'ioredis';
 import { config } from './config';
 import { logger } from './logger';
 import { tokenVerifier } from './auth/token_verifier';
+import { reportAgentActivity, withActivity } from './agent_activity';
 import { RedisEventStore } from './store/redis_event_store';
 import { SERVER_VERSION } from './version';
 import {
@@ -125,7 +126,7 @@ Deleting:
             idempotentHint: true,
             openWorldHint: false,
         },
-    }, handleListAccounts);
+    }, withActivity(listAccountsTool.name, handleListAccounts));
 
     server.registerTool(listChatsTool.name, {
         title: 'List Publishing Destinations',
@@ -138,7 +139,7 @@ Deleting:
             idempotentHint: true,
             openWorldHint: false,
         },
-    }, handleListChats);
+    }, withActivity(listChatsTool.name, handleListChats));
 
     server.registerTool(uploadMediaTool.name, {
         title: 'Upload Media',
@@ -151,7 +152,7 @@ Deleting:
             idempotentHint: false,
             openWorldHint: false,
         },
-    }, handleUploadMedia);
+    }, withActivity(uploadMediaTool.name, handleUploadMedia));
 
     server.registerTool(listMediaTool.name, {
         title: 'List Media',
@@ -164,7 +165,7 @@ Deleting:
             idempotentHint: true,
             openWorldHint: false,
         },
-    }, handleListMedia);
+    }, withActivity(listMediaTool.name, handleListMedia));
 
     server.registerTool(createUploadLinkTool.name, {
         title: 'Create Upload Link',
@@ -177,7 +178,7 @@ Deleting:
             idempotentHint: false,
             openWorldHint: false,
         },
-    }, handleCreateUploadLink);
+    }, withActivity(createUploadLinkTool.name, handleCreateUploadLink));
 
     server.registerTool(getUploadLinkTool.name, {
         title: 'Get Upload Link',
@@ -190,7 +191,7 @@ Deleting:
             idempotentHint: true,
             openWorldHint: false,
         },
-    }, handleGetUploadLink);
+    }, withActivity(getUploadLinkTool.name, handleGetUploadLink));
 
     server.registerTool(schedulePostTool.name, {
         title: 'Schedule Post',
@@ -203,7 +204,7 @@ Deleting:
             idempotentHint: false,
             openWorldHint: false,
         },
-    }, handleSchedulePost);
+    }, withActivity(schedulePostTool.name, handleSchedulePost));
 
     server.registerTool(listPostsTool.name, {
         title: 'List Posts',
@@ -216,7 +217,7 @@ Deleting:
             idempotentHint: true,
             openWorldHint: false,
         },
-    }, handleListPosts);
+    }, withActivity(listPostsTool.name, handleListPosts));
 
     server.registerTool(getPostTool.name, {
         title: 'Get Post',
@@ -229,7 +230,7 @@ Deleting:
             idempotentHint: true,
             openWorldHint: false,
         },
-    }, handleGetPost);
+    }, withActivity(getPostTool.name, handleGetPost));
 
     server.registerTool(deletePostTool.name, {
         title: 'Delete Post',
@@ -242,7 +243,7 @@ Deleting:
             idempotentHint: true,
             openWorldHint: true,
         },
-    }, handleDeletePost);
+    }, withActivity(deletePostTool.name, handleDeletePost));
 
     server.registerTool(deleteMediaTool.name, {
         title: 'Delete Media',
@@ -255,7 +256,7 @@ Deleting:
             idempotentHint: true,
             openWorldHint: false,
         },
-    }, handleDeleteMedia);
+    }, withActivity(deleteMediaTool.name, handleDeleteMedia));
 
     server.registerTool(connectAccountTool.name, {
         title: 'Connect Social Account',
@@ -268,7 +269,7 @@ Deleting:
             idempotentHint: false,
             openWorldHint: true,
         },
-    }, (args, extra) => handleConnectAccount(args, extra, server.server));
+    }, withActivity(connectAccountTool.name, (args, extra) => handleConnectAccount(args, extra, server.server)));
 
     // Prompts
     server.registerPrompt('schedule-post', {
@@ -494,6 +495,12 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
         const server = createMcpServer();
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
+        const clientInfo = req.body?.params?.clientInfo;
+        reportAgentActivity(req.auth, {
+            event: 'SESSION_STARTED',
+            clientName: typeof clientInfo?.name === 'string' ? clientInfo.name.slice(0, 100) : undefined,
+            clientVersion: typeof clientInfo?.version === 'string' ? clientInfo.version.slice(0, 50) : undefined,
+        });
         return;
     }
 
