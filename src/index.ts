@@ -17,6 +17,7 @@ import Redis from 'ioredis';
 import { config } from './config';
 import { logger } from './logger';
 import { tokenVerifier } from './auth/token_verifier';
+import { claimAgentClient } from './agent_client';
 import { RedisEventStore } from './store/redis_event_store';
 import { SERVER_VERSION } from './version';
 import {
@@ -494,6 +495,7 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
         const server = createMcpServer();
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
+        claimAgentClient(req.auth);
         return;
     }
 
