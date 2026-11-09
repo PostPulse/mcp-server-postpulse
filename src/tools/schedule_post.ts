@@ -4,11 +4,11 @@ import { ApiAccount, unknownAccountMessage } from '../api/accounts';
 
 export const schedulePostTool = {
     name: 'schedule_post',
-    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook and Facebook Page (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, Pinterest, X/Twitter, Bluesky, and Telegram. Requires an accountId from list_accounts (if the user has no account for the platform, use connect_account first), a platform identifier, and a scheduledTime in ISO-8601 format. For an account whose platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (Page ID, Channel ID or Board ID) and pass it as facebookPageId, telegramChannelId or pinterestBoardId respectively. A FACEBOOK_PAGE account is one Facebook Page (connect_account creates these for Facebook): post to it directly, without list_chats or facebookPageId. Pinterest posts require media (1 image, 1 video, or 2-5 images). With publicationType STORY, each key in mediaPaths becomes its own story, in the order given, and all of them belong to this one post and its scheduledTime. Optionally attach media via mediaPaths (keys from list_media, upload_media or get_upload_link), set publication type, title, topic tag, or Pin link/alt text depending on the platform.',
+    description: 'Schedule a social media post to a connected account. Supports Instagram (feed, reel, story), Facebook and Facebook Page (feed, reel, story), YouTube, TikTok, Threads, LinkedIn, Pinterest, X/Twitter, Bluesky, Telegram, and WhatsApp broadcasts. A WhatsApp post sends an approved template to a contact list from one phone number: pass whatsappPhoneNumberId (list_chats), contactListId (list_whatsapp_contact_lists), templateName, templateLanguage and the template\'s variables (list_whatsapp_templates); content is not needed, the text comes from the template, and mediaPaths is only the header image or video of a template that has one. Requires an accountId from list_accounts (if the user has no account for the platform, use connect_account first), a platform identifier, and a scheduledTime in ISO-8601 format. For an account whose platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (Page ID, Channel ID or Board ID) and pass it as facebookPageId, telegramChannelId or pinterestBoardId respectively. A FACEBOOK_PAGE account is one Facebook Page (connect_account creates these for Facebook): post to it directly, without list_chats or facebookPageId. Pinterest posts require media (1 image, 1 video, or 2-5 images). With publicationType STORY, each key in mediaPaths becomes its own story, in the order given, and all of them belong to this one post and its scheduledTime. Optionally attach media via mediaPaths (keys from list_media, upload_media or get_upload_link), set publication type, title, topic tag, or Pin link/alt text depending on the platform.',
     inputSchema: z.object({
         accountId: z.coerce.number().int().positive().describe('The account ID from list_accounts'),
-        platform: z.string().describe('The account\'s platform exactly as list_accounts returned it (e.g. INSTAGRAM, FACEBOOK, FACEBOOK_PAGE, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, PINTEREST, X_TWITTER)'),
-        content: z.string().optional().describe('Post content text'),
+        platform: z.string().describe('The account\'s platform exactly as list_accounts returned it (e.g. INSTAGRAM, FACEBOOK, FACEBOOK_PAGE, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, PINTEREST, X_TWITTER, WHATSAPP)'),
+        content: z.string().optional().describe('Post content text (not used for WhatsApp: the text comes from the template)'),
         mediaPaths: z.array(z.string().describe('Media key from list_media, upload_media or get_upload_link, not the file name')).optional().describe('Optional array of media keys from list_media, upload_media or get_upload_link. With publicationType STORY, each key is one story of this post'),
         scheduledTime: z.string().describe('ISO-8601 timestamp for scheduling (e.g., 2023-10-27T10:00:00Z).'),
 
@@ -22,6 +22,13 @@ export const schedulePostTool = {
         link: z.string().optional().describe('Pinterest only: destination URL opened when the Pin is clicked'),
         altText: z.string().optional().describe('Pinterest only: alt text describing the Pin image'),
         boardSectionId: z.string().optional().describe('Pinterest only: ID of a section within the board'),
+        whatsappPhoneNumberId: z.string().optional().describe('WhatsApp only (required): the phone number to send from. Get it from list_chats for the WHATSAPP account'),
+        contactListId: z.coerce.number().int().positive().optional().describe('WhatsApp only (required): the contact list to send to, from list_whatsapp_contact_lists'),
+        templateName: z.string().optional().describe('WhatsApp only (required): name of an approved template from list_whatsapp_templates'),
+        templateLanguage: z.string().optional().describe('WhatsApp only (required): language of that template, as list_whatsapp_templates returned it (e.g. en_US)'),
+        headerParameter: z.string().optional().describe('WhatsApp only: value of the text header variable, when the template has headerParameterKey'),
+        bodyParameters: z.record(z.string(), z.string()).optional().describe('WhatsApp only: body variable values by key, one for every key in the template\'s bodyParameterKeys, e.g. {"1": "20%", "2": "Sunday"}'),
+        buttonParameters: z.record(z.string(), z.string()).optional().describe('WhatsApp only: end of the URL of each button with dynamicUrl, by the button\'s index in the template\'s buttons, e.g. {"0": "autumn-2026"}'),
     }),
 };
 
@@ -40,7 +47,14 @@ export async function handleSchedulePost(args: any, extra: any) {
         topicTag,
         link,
         altText,
-        boardSectionId
+        boardSectionId,
+        whatsappPhoneNumberId,
+        contactListId,
+        templateName,
+        templateLanguage,
+        headerParameter,
+        bodyParameters,
+        buttonParameters
     } = args;
 
     const token = (extra as any)?.authInfo?.token || '';
@@ -85,6 +99,14 @@ export async function handleSchedulePost(args: any, extra: any) {
             if (link) platformSettings.link = link;
             if (altText) platformSettings.altText = altText;
             if (boardSectionId) platformSettings.boardSectionId = boardSectionId;
+        } else if (platform === 'WHATSAPP') {
+            // The API checks the template and its variables and takes the post text from the template
+            if (contactListId) platformSettings.contactListId = contactListId;
+            if (templateName) platformSettings.templateName = templateName;
+            if (templateLanguage) platformSettings.templateLanguage = templateLanguage;
+            if (headerParameter) platformSettings.headerParameter = headerParameter;
+            if (bodyParameters) platformSettings.bodyParameters = bodyParameters;
+            if (buttonParameters) platformSettings.buttonParameters = buttonParameters;
         }
 
         // 3. Construct Post Data
@@ -98,6 +120,8 @@ export async function handleSchedulePost(args: any, extra: any) {
             postData.chatId = telegramChannelId;
         } else if (platform === 'PINTEREST' && pinterestBoardId) {
             postData.chatId = pinterestBoardId;
+        } else if (platform === 'WHATSAPP' && whatsappPhoneNumberId) {
+            postData.chatId = whatsappPhoneNumberId;
         }
 
         // Handle Media. The API takes one media per story, and a publication holds any number of stories:

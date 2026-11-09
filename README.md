@@ -2,11 +2,12 @@
 
 [![smithery badge](https://smithery.ai/badge/post-pulse/mcp-server)](https://smithery.ai/servers/post-pulse/mcp-server)
 
-An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse](https://post-pulse.com) — a social media management platform. Schedule posts, upload media, and manage accounts across Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, Pinterest, X (Twitter), Bluesky, and Telegram — all through natural language.
+An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse](https://post-pulse.com) — a social media management platform. Schedule posts, upload media, and manage accounts across Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, Pinterest, X (Twitter), Bluesky, Telegram and WhatsApp — all through natural language.
 
 ## Features
 
-- **Multi-platform posting** — Schedule posts to 10 social media platforms from a single interface
+- **Multi-platform posting** — Schedule posts to 11 platforms from a single interface
+- **WhatsApp broadcasts** — Send an approved WhatsApp template to a contact list and follow its delivery
 - **Media management** — Find files in the media library, import images and videos by URL, give the user a link to upload files from their device, or upload small files as base64
 - **Account management** — List and manage all connected social media accounts
 - **Read your posts** — List posts by date range and get each post's per-platform status, public link, error and metrics
@@ -29,6 +30,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 | **X (Twitter)** | Post | Image, Video | Account |
 | **Bluesky** | Post | Image | Account |
 | **Telegram** | Message | Text, Image, Video | Channel/Chat |
+| **WhatsApp** | Template broadcast | Approved template, optional image or video header | WhatsApp Business Account connected on the website, contact list |
 
 ## Quick Start
 
@@ -117,23 +119,23 @@ Get a secure PostPulse link that connects (or reconnects) a social media account
 **Parameters:**
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `platform` | string | One of the two | `INSTAGRAM`, `FACEBOOK`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER`, `BLUE_SKY`, `TELEGRAM`, `PINTEREST` |
+| `platform` | string | One of the two | `INSTAGRAM`, `FACEBOOK`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `X_TWITTER`, `BLUE_SKY`, `TELEGRAM`, `PINTEREST`, `WHATSAPP` |
 | `accountId` | number | One of the two | Reconnect an existing account (from `list_accounts`, usually one with `needsReauthorization: true`). The platform is taken from the account |
 
 **Behaviour:**
 - For a new connection the tool first checks that the user may add an account (plan or credits). If not, it returns the reason and a link to billing.
 - The link is single-use, tied to the user's PostPulse account and valid for **24 hours**; the platform consent starts only when the user clicks Continue on the page. It must not be shared: whoever completes it attaches their social account to this PostPulse account.
 - If too many links are requested in a short time, the tool asks to wait a few minutes and try again.
-- **Telegram** cannot be connected with a link: the tool returns instructions to connect it on https://post-pulse.com/app/accounts instead.
+- **Telegram** and **WhatsApp** cannot be connected with a link: the tool returns instructions to connect them on https://post-pulse.com/app/accounts instead.
 - A new Facebook connection creates one `FACEBOOK_PAGE` account per picked Page: post to it directly, without `list_chats`. For `TELEGRAM` and for a reconnected `FACEBOOK` account, call `list_chats` afterwards to pick the channel or Page.
 - Clients that support URL-mode elicitation additionally get a native "open this link" dialog; the link is always in the text result as well.
 - Errors that happen in the browser (account limit, account already used by another PostPulse user, expired link) are shown on the page, not returned by the tool.
 
 ### `list_chats`
 
-List publishing destinations for accounts that have sub-destinations. Facebook accounts publish to **Pages**, Telegram accounts publish to **channels or chats**, and Pinterest accounts publish to **boards**. Call this before scheduling posts to these platforms — use the returned `id` as the `facebookPageId`, `telegramChannelId` or `pinterestBoardId` in `schedule_post`.
+List publishing destinations for accounts that have sub-destinations. Facebook accounts publish to **Pages**, Telegram accounts publish to **channels or chats**, Pinterest accounts publish to **boards**, and WhatsApp accounts send from their **phone numbers**. Call this before scheduling posts to these platforms — use the returned `id` as the `facebookPageId`, `telegramChannelId`, `pinterestBoardId` or `whatsappPhoneNumberId` in `schedule_post`.
 
-Only supports accounts whose platform is `FACEBOOK`, `TELEGRAM` or `PINTEREST`. Other platforms, including `FACEBOOK_PAGE` (an account that is one Page), do not have sub-destinations and should be posted to directly.
+Only supports accounts whose platform is `FACEBOOK`, `TELEGRAM`, `PINTEREST` or `WHATSAPP`. Other platforms, including `FACEBOOK_PAGE` (an account that is one Page), do not have sub-destinations and should be posted to directly.
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -141,6 +143,35 @@ Only supports accounts whose platform is `FACEBOOK`, `TELEGRAM` or `PINTEREST`. 
 | `accountId` | number | Yes | Account ID obtained from `list_accounts` |
 
 **Returns:** JSON array of destination objects (`id`, `title`, `type`, `platform`).
+
+### `list_whatsapp_templates`
+
+List the approved message templates of a `WHATSAPP` account. A WhatsApp post sends one of them: pass its `name` and `language` as `templateName` and `templateLanguage` in `schedule_post`, and fill its variables:
+
+- `bodyParameters` — a value for every key in `bodyParameterKeys` (`"1"`, `"2"`, … for `POSITIONAL` templates, the variable names for `NAMED` ones);
+- `headerParameter` — only when `headerParameterKey` is set, up to 60 characters;
+- `buttonParameters` — the end of the URL of each button with `dynamicUrl: true`, keyed by the button's index;
+- `mediaPaths` — exactly one image or video when `headerFormat` is `IMAGE` or `VIDEO`.
+
+Templates with `supported: false` cannot be sent (`unsupportedReason` says why). Templates are created in WhatsApp Manager, not in PostPulse.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `accountId` | number | Yes | ID of a `WHATSAPP` account from `list_accounts` |
+
+**Returns:** the JSON array of templates as the PostPulse API returns it.
+
+### `list_whatsapp_contact_lists`
+
+List the contact lists of a `WHATSAPP` account. A broadcast goes to one list: pass its `id` as `contactListId` in `schedule_post`. Lists are created and filled on the PostPulse website, where the user confirms that the contacts agreed to receive their messages.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `accountId` | number | Yes | ID of a `WHATSAPP` account from `list_accounts` |
+
+**Returns:** JSON array of lists (`id`, `name`, `contactCount`, `createdTime`).
 
 ### `upload_media`
 
@@ -219,8 +250,8 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `accountId` | number | Yes | Account ID from `list_accounts` |
-| `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `PINTEREST`, `X_TWITTER`, `BLUE_SKY` |
-| `content` | string | No | Post text/caption |
+| `platform` | string | Yes | Target platform: `INSTAGRAM`, `FACEBOOK`, `TELEGRAM`, `YOUTUBE`, `TIKTOK`, `THREADS`, `LINKEDIN`, `PINTEREST`, `X_TWITTER`, `BLUE_SKY`, `WHATSAPP` |
+| `content` | string | No | Post text/caption. Not used for WhatsApp: the text comes from the template |
 | `mediaPaths` | string[] | No | Media keys from `list_media`, `upload_media` or `get_upload_link`. With `publicationType: STORY`, each key becomes its own story, in the order given, within one post |
 | `scheduledTime` | string | Yes | ISO-8601 timestamp (e.g., `2025-01-15T10:00:00Z`) |
 | `facebookPageId` | string | **Yes** (Facebook) | Facebook Page ID from `list_chats`. Required when platform is `FACEBOOK` |
@@ -232,6 +263,13 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | `link` | string | No | Destination URL opened when the Pin is clicked (Pinterest) |
 | `altText` | string | No | Alt text for the Pin image (Pinterest) |
 | `boardSectionId` | string | No | Section within the board (Pinterest) |
+| `whatsappPhoneNumberId` | string | **Yes** (WhatsApp) | Phone number to send from, from `list_chats` |
+| `contactListId` | number | **Yes** (WhatsApp) | Contact list from `list_whatsapp_contact_lists` |
+| `templateName` | string | **Yes** (WhatsApp) | Approved template from `list_whatsapp_templates` |
+| `templateLanguage` | string | **Yes** (WhatsApp) | Language of that template, as `list_whatsapp_templates` returns it |
+| `headerParameter` | string | No | Value of the text header variable (WhatsApp) |
+| `bodyParameters` | object | No | Body variable values by key, e.g. `{"1": "20%", "2": "Sunday"}` (WhatsApp) |
+| `buttonParameters` | object | No | URL endings of buttons with a dynamic URL, by button index, e.g. `{"0": "autumn-2026"}` (WhatsApp) |
 
 ### `list_posts`
 
@@ -259,6 +297,16 @@ Metrics of published posts are refreshed from the platform on each call.
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `postId` | number | Yes | Post id from `list_posts` or `schedule_post` |
+
+### `get_whatsapp_delivery`
+
+Show how a WhatsApp broadcast went: the number of messages that are pending, sending, accepted, sent, delivered, read, failed, opted out or cancelled, and the most frequent WhatsApp errors. The counts keep changing while WhatsApp reports statuses, also after the post has finished.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `accountId` | number | Yes | ID of the `WHATSAPP` account |
+| `postId` | number | Yes | `publications[].posts[].id` of the WhatsApp publication from `get_post` (not the id of the scheduled post itself) |
 
 ### `delete_post`
 

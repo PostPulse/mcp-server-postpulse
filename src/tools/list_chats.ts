@@ -4,7 +4,7 @@ import { ApiAccount, CHAT_PLATFORMS, unknownAccountMessage } from '../api/accoun
 
 export const listChatsTool = {
     name: 'list_chats',
-    description: 'List publishing destinations (Telegram channels/chats, Facebook Pages or Pinterest boards) of one account. Call it only for an account whose platform in list_accounts is TELEGRAM, FACEBOOK or PINTEREST; then pass the returned id as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. Accounts of every other platform, including FACEBOOK_PAGE (an account that is one Facebook Page; connect_account creates these for Facebook), have no destinations: post to them directly via schedule_post.',
+    description: 'List publishing destinations (Telegram channels/chats, Facebook Pages, Pinterest boards or WhatsApp phone numbers) of one account. Call it only for an account whose platform in list_accounts is TELEGRAM, FACEBOOK, PINTEREST or WHATSAPP; then pass the returned id as telegramChannelId, facebookPageId, pinterestBoardId or whatsappPhoneNumberId (the number to send from) in schedule_post. Accounts of every other platform, including FACEBOOK_PAGE (an account that is one Facebook Page; connect_account creates these for Facebook), have no destinations: post to them directly via schedule_post.',
     inputSchema: z.object({
         accountId: z.coerce.number().int().positive().describe('The account ID from list_accounts'),
     }),

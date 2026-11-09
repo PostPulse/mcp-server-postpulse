@@ -135,6 +135,23 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.match(text(result), /list_chats for the Telegram account/);
         assert.equal(linkCalls().length, 0);
     }],
+    ['WhatsApp: website guidance, no API call', async () => {
+        const result = await handleConnectAccount({ platform: 'WHATSAPP' }, {});
+        assert.equal(result.isError, undefined);
+        assert.match(text(result), /WhatsApp cannot be connected with a link/);
+        assert.match(text(result), /post-pulse\.com\/app\/accounts/);
+        assert.equal(calls.length, 0);
+    }],
+    ['WhatsApp reconnect by accountId: guidance instead of a refused link', async () => {
+        getHandler = (url) => {
+            if (url === '/v1/accounts') return { data: [...ACCOUNTS, { id: 9, platform: 'WHATSAPP', needsReauthorization: true }] };
+            throw new Error(`unexpected GET ${url}`);
+        };
+        const result = await handleConnectAccount({ accountId: 9 }, {});
+        assert.equal(result.isError, undefined);
+        assert.match(text(result), /list_chats for the WhatsApp account/);
+        assert.equal(linkCalls().length, 0);
+    }],
     ['neither platform nor accountId: error', async () => {
         const result = await handleConnectAccount({}, {});
         assert.equal(result.isError, true);

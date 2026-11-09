@@ -26,8 +26,8 @@ export function toAccountSummary(acc: ApiAccount): AccountSummary {
     };
 }
 
-/** Platforms whose accounts publish to a destination picked with list_chats (Page, channel/chat, board). */
-export const CHAT_PLATFORMS = ['FACEBOOK', 'TELEGRAM', 'PINTEREST'];
+/** Platforms whose accounts publish to a destination picked with list_chats (Page, channel/chat, board, sending number). */
+export const CHAT_PLATFORMS = ['FACEBOOK', 'TELEGRAM', 'PINTEREST', 'WHATSAPP'];
 
 /**
  * Error text for an accountId that is not one of the user's accounts: an id the agent made up (0),

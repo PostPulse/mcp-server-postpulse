@@ -84,6 +84,46 @@ const tests: Array<[string, () => Promise<void>]> = [
         });
         assert.deepEqual(publication.posts, [{ chatId: 'chat-1', attachmentPaths: KEYS }]);
     }],
+    ['WhatsApp: the number is the chatId, the template and its variables go in platformSettings', async () => {
+        const { result, publication } = await schedule({
+            platform: 'WHATSAPP',
+            whatsappPhoneNumberId: '106540352242922',
+            contactListId: 42,
+            templateName: 'autumn_sale',
+            templateLanguage: 'en',
+            headerParameter: 'Autumn sale',
+            bodyParameters: { 1: '20%', 2: 'Sunday' },
+            buttonParameters: { 0: 'autumn-2026' },
+            mediaPaths: [KEYS[0]],
+        });
+        assert.equal(result.isError, undefined);
+        assert.deepEqual(publication.platformSettings, {
+            type: 'WHATSAPP',
+            contactListId: 42,
+            templateName: 'autumn_sale',
+            templateLanguage: 'en',
+            headerParameter: 'Autumn sale',
+            bodyParameters: { 1: '20%', 2: 'Sunday' },
+            buttonParameters: { 0: 'autumn-2026' },
+        });
+        assert.deepEqual(publication.posts, [{ chatId: '106540352242922', attachmentPaths: [KEYS[0]] }]);
+    }],
+    ['WhatsApp: variables the template has none of are left out', async () => {
+        const { publication } = await schedule({
+            platform: 'WHATSAPP', whatsappPhoneNumberId: 'phone-1', contactListId: 42, templateName: 'hello_world', templateLanguage: 'en_US',
+        });
+        assert.deepEqual(publication.platformSettings, {
+            type: 'WHATSAPP', contactListId: 42, templateName: 'hello_world', templateLanguage: 'en_US',
+        });
+        assert.deepEqual(publication.posts, [{ chatId: 'phone-1' }]);
+    }],
+    ['WhatsApp fields sent for another platform are ignored', async () => {
+        const { publication } = await schedule({
+            platform: 'TELEGRAM', telegramChannelId: 'chat-1', content: 'Hi', whatsappPhoneNumberId: 'phone-1', templateName: 'x',
+        });
+        assert.deepEqual(publication.platformSettings, { type: 'TELEGRAM' });
+        assert.deepEqual(publication.posts, [{ content: 'Hi', chatId: 'chat-1' }]);
+    }],
     ['an API refusal of a story comes back as an error', async () => {
         reset();
         failure = { status: 400, data: { error: 'Instagram Story publication should have exactly one media per post' } };
