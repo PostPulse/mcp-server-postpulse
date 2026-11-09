@@ -7,7 +7,7 @@ import { logger } from '../logger';
 
 /**
  * Platforms a new account can be connected for: those schedule_post can post to.
- * TELEGRAM and WHATSAPP have no link-based flow and only return guidance.
+ * TELEGRAM has no link-based flow and only returns guidance.
  * Tool and prompt descriptions are built from this list, so it is the only place to extend.
  */
 export const CONNECTABLE_PLATFORMS = [
@@ -40,6 +40,7 @@ const PLATFORM_NOTES: Record<string, string> = {
     FACEBOOK_PAGE: 'Facebook: sign in as a Facebook user who manages your Pages, then pick on the PostPulse page which Pages to connect. Each Page becomes its own FACEBOOK_PAGE account (and uses a seat); post to it directly, without list_chats.',
     YOUTUBE: 'YouTube: the Google account must have a YouTube channel.',
     PINTEREST: 'Pinterest: after connecting, call list_chats for this account to pick the board to pin to.',
+    WHATSAPP: 'WhatsApp: in the Meta window pick your business portfolio and the WhatsApp Business Account with its phone number, then pick on the PostPulse page which WhatsApp Business Accounts to connect. Each becomes its own WHATSAPP account (and uses a seat); call list_chats for it to get the numbers to send from. Contact lists are created on the PostPulse website (https://post-pulse.com/app/accounts): adding contacts confirms that they agreed to receive your messages.',
 };
 
 /** Platforms connected on the PostPulse website only: the tool returns these steps instead of a link. */
@@ -49,12 +50,6 @@ const WEBSITE_ONLY_GUIDANCE: Record<string, string> = {
 2. Connect Telegram there.
 3. Add the PostPulse bot to the channel or group you want to post to.
 4. Come back and tell me, and I will check with list_accounts and list_chats for the Telegram account.`,
-    WHATSAPP: `WhatsApp cannot be connected with a link from the chat. To connect it:
-1. Open https://post-pulse.com/app/accounts and sign in with the same login you use for this chat (Google or email).
-2. Click WhatsApp and complete the Meta window: pick your business portfolio and your WhatsApp Business Account with its phone number.
-3. Pick the WhatsApp Business Accounts to connect on the PostPulse page.
-4. Create a contact list for the account on the website: contacts are added there, with the confirmation that they agreed to receive your messages.
-5. Come back and tell me, and I will check with list_accounts and list_chats for the WhatsApp account.`,
 };
 
 const BILLING_URL = 'https://post-pulse.com/app/billing';
@@ -73,7 +68,7 @@ export type UrlElicitor = Pick<Server, 'getClientCapabilities' | 'elicitInput'>;
 
 export const connectAccountTool = {
     name: 'connect_account',
-    description: 'Get a secure PostPulse link that lets the user connect (or reconnect) a social media account to PostPulse directly from the chat. Show the link to the user; they open it in a browser, check on the PostPulse page which PostPulse account the social account will be attached to, and approve access on the platform. The link is single-use and valid for 24 hours. The tool does not wait: after the user says they are done, call list_accounts to confirm the new account. Use it when list_accounts returns no account for the platform the user wants, or to reconnect an account whose needsReauthorization is true. Pass either platform (new connection) or accountId (reconnect). Telegram and WhatsApp are connected on the PostPulse website; for them the tool returns instructions instead of a link.',
+    description: 'Get a secure PostPulse link that lets the user connect (or reconnect) a social media account to PostPulse directly from the chat. Show the link to the user; they open it in a browser, check on the PostPulse page which PostPulse account the social account will be attached to, and approve access on the platform. The link is single-use and valid for 24 hours. The tool does not wait: after the user says they are done, call list_accounts to confirm the new account. Use it when list_accounts returns no account for the platform the user wants, or to reconnect an account whose needsReauthorization is true. Pass either platform (new connection) or accountId (reconnect). Telegram is connected on the PostPulse website; for it the tool returns instructions instead of a link.',
     inputSchema: z.object({
         platform: z.enum(CONNECTABLE_PLATFORMS).optional().describe(`Platform to connect: ${CONNECTABLE_PLATFORMS_TEXT}. Not needed when accountId is given.`),
         accountId: z.coerce.number().optional().describe('Only to reconnect an existing account whose needsReauthorization is true (from list_accounts). The platform is taken from the account.'),

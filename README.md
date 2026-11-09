@@ -30,7 +30,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 | **X (Twitter)** | Post | Image, Video | Account |
 | **Bluesky** | Post | Image | Account |
 | **Telegram** | Message | Text, Image, Video | Channel/Chat |
-| **WhatsApp** | Template broadcast | Approved template, optional image or video header | WhatsApp Business Account connected on the website, contact list |
+| **WhatsApp** | Template broadcast | Approved template, optional image or video header | WhatsApp Business Account (phone number), contact list created on the website |
 
 ## Quick Start
 
@@ -126,8 +126,9 @@ Get a secure PostPulse link that connects (or reconnects) a social media account
 - For a new connection the tool first checks that the user may add an account (plan or credits). If not, it returns the reason and a link to billing.
 - The link is single-use, tied to the user's PostPulse account and valid for **24 hours**; the platform consent starts only when the user clicks Continue on the page. It must not be shared: whoever completes it attaches their social account to this PostPulse account.
 - If too many links are requested in a short time, the tool asks to wait a few minutes and try again.
-- **Telegram** and **WhatsApp** cannot be connected with a link: the tool returns instructions to connect them on https://post-pulse.com/app/accounts instead.
+- **Telegram** cannot be connected with a link: the tool returns instructions to connect it on https://post-pulse.com/app/accounts instead.
 - A new Facebook connection creates one `FACEBOOK_PAGE` account per picked Page: post to it directly, without `list_chats`. For `TELEGRAM` and for a reconnected `FACEBOOK` account, call `list_chats` afterwards to pick the channel or Page.
+- A WhatsApp connection creates one `WHATSAPP` account per WhatsApp Business Account picked in the Meta window and on the PostPulse page; call `list_chats` for it to get the phone numbers to send from. Contact lists are created on the PostPulse website, where the user confirms that the contacts agreed to receive their messages.
 - Clients that support URL-mode elicitation additionally get a native "open this link" dialog; the link is always in the text result as well.
 - Errors that happen in the browser (account limit, account already used by another PostPulse user, expired link) are shown on the page, not returned by the tool.
 
