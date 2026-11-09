@@ -39,6 +39,14 @@ import { listPostsTool, handleListPosts } from './tools/list_posts';
 import { getPostTool, handleGetPost } from './tools/get_post';
 import { deletePostTool, handleDeletePost } from './tools/delete_post';
 import { deleteMediaTool, handleDeleteMedia } from './tools/delete_media';
+import {
+    listWhatsAppTemplatesTool,
+    handleListWhatsAppTemplates,
+    listWhatsAppContactListsTool,
+    handleListWhatsAppContactLists,
+    getWhatsAppDeliveryTool,
+    handleGetWhatsAppDelivery,
+} from './tools/whatsapp';
 
 // Import resources
 import { listAccountsResource, handleListAccountsResource } from './resources/accounts';
@@ -70,9 +78,10 @@ Important notes:
 - The scheduledTime must be a future ISO-8601 timestamp (e.g., 2025-06-15T14:00:00Z).
 - For Instagram, Facebook and Facebook Page, you can set publicationType to FEED, REELS, or STORY (defaults to FEED). With STORY, each key in mediaPaths becomes its own story, in the order given, within one post and one scheduledTime.
 - For YouTube and TikTok, provide a title for the video.
-- For an account whose platform in list_accounts is TELEGRAM, FACEBOOK or PINTEREST, you MUST first call list_chats for that account to get the publishing destination (channel/chat ID, Page ID or board ID), then pass it as telegramChannelId, facebookPageId or pinterestBoardId in schedule_post. list_chats only works for these three platforms. Always pass an account's platform to schedule_post exactly as list_accounts returned it.
+- For an account whose platform in list_accounts is TELEGRAM, FACEBOOK, PINTEREST or WHATSAPP, you MUST first call list_chats for that account to get the publishing destination (channel/chat ID, Page ID, board ID or the WhatsApp phone number to send from), then pass it as telegramChannelId, facebookPageId, pinterestBoardId or whatsappPhoneNumberId in schedule_post. list_chats only works for these four platforms. Always pass an account's platform to schedule_post exactly as list_accounts returned it.
 - A FACEBOOK_PAGE account is one Facebook Page (connect_account creates FACEBOOK_PAGE accounts for Facebook): schedule_post to it directly, without list_chats or facebookPageId.
 - For Pinterest, attach media (1 image, 1 video, or 2-5 images); title, link, altText and boardSectionId are optional.
+- A WHATSAPP account is a WhatsApp Business Account, and a post to it is a broadcast: an approved message template sent to a contact list from one phone number. Call list_chats (phone numbers), list_whatsapp_templates and list_whatsapp_contact_lists, then schedule_post with whatsappPhoneNumberId, contactListId, templateName, templateLanguage and the template's variables. content is not needed: the text comes from the template. Templates are created in WhatsApp Manager and contact lists on the PostPulse website, not from the chat. After the broadcast, get_whatsapp_delivery shows how many messages were delivered, read or failed.
 - upload_media accepts either a public URL (mediaUrl) or base64 data (mediaData + mediaType). It returns a media key string to pass into schedule_post's mediaPaths array. A long import returns its import id and state instead: call upload_media again with importId, and do not start it again.
 
 Getting a media key:
@@ -92,6 +101,7 @@ Connecting accounts:
 - An account with needsReauthorization: true must be reconnected with connect_account(accountId) before posting to it.
 - Telegram cannot be connected from the chat: connect_account returns instructions for the PostPulse website instead of a link.
 - connect_account with FACEBOOK connects Facebook Pages: the user picks the Pages on the PostPulse page, and each becomes its own FACEBOOK_PAGE account.
+- connect_account with WHATSAPP connects WhatsApp Business Accounts: the user picks them in the Meta window and on the PostPulse page, and each becomes its own WHATSAPP account. Contact lists are created on the PostPulse website, not from the chat.
 
 Reading posts:
 - list_posts lists the user's posts in a date range (at most 93 days per call): id, status, scheduled time, platforms and text.
@@ -193,6 +203,32 @@ Deleting:
         },
     }, handleGetUploadLink);
 
+    server.registerTool(listWhatsAppTemplatesTool.name, {
+        title: 'List WhatsApp Templates',
+        description: listWhatsAppTemplatesTool.description,
+        inputSchema: listWhatsAppTemplatesTool.inputSchema,
+        annotations: {
+            title: 'List WhatsApp Templates',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleListWhatsAppTemplates);
+
+    server.registerTool(listWhatsAppContactListsTool.name, {
+        title: 'List WhatsApp Contact Lists',
+        description: listWhatsAppContactListsTool.description,
+        inputSchema: listWhatsAppContactListsTool.inputSchema,
+        annotations: {
+            title: 'List WhatsApp Contact Lists',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleListWhatsAppContactLists);
+
     server.registerTool(schedulePostTool.name, {
         title: 'Schedule Post',
         description: schedulePostTool.description,
@@ -231,6 +267,19 @@ Deleting:
             openWorldHint: false,
         },
     }, handleGetPost);
+
+    server.registerTool(getWhatsAppDeliveryTool.name, {
+        title: 'Get WhatsApp Delivery',
+        description: getWhatsAppDeliveryTool.description,
+        inputSchema: getWhatsAppDeliveryTool.inputSchema,
+        annotations: {
+            title: 'Get WhatsApp Delivery',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleGetWhatsAppDelivery);
 
     server.registerTool(deletePostTool.name, {
         title: 'Delete Post',
@@ -276,7 +325,7 @@ Deleting:
         title: 'Schedule a Social Media Post',
         description: 'Guide through scheduling a post to a connected social media account. Walks through account selection, optional media upload, and post scheduling.',
         argsSchema: {
-            platform: z.string().optional().describe('Target platform (e.g. INSTAGRAM, FACEBOOK, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, PINTEREST, X_TWITTER, BLUE_SKY)'),
+            platform: z.string().optional().describe('Target platform (e.g. INSTAGRAM, FACEBOOK, TELEGRAM, YOUTUBE, TIKTOK, THREADS, LINKEDIN, PINTEREST, X_TWITTER, BLUE_SKY, WHATSAPP)'),
             content: z.string().optional().describe('Post text or caption'),
         },
     }, async (args) => {
@@ -291,7 +340,7 @@ Deleting:
 
 Steps:
 1. Call list_accounts to find my connected accounts. If there is no account for the platform, call connect_account, show me the link and wait for me to finish, then call list_accounts again.
-2. If the account's platform in list_accounts is FACEBOOK, TELEGRAM or PINTEREST, call list_chats for that account to get the publishing destination (Page, Channel or Board). Any other platform, including FACEBOOK_PAGE (already one Page), skips this step.
+2. If the account's platform in list_accounts is FACEBOOK, TELEGRAM, PINTEREST or WHATSAPP, call list_chats for that account to get the publishing destination (Page, Channel, Board or the WhatsApp number to send from). Any other platform, including FACEBOOK_PAGE (already one Page), skips this step. For WHATSAPP, also call list_whatsapp_templates and list_whatsapp_contact_lists, and ask me which template and list to use and the values of the template's variables.
 3. If I need to attach media, get its media key. ${MEDIA_KEY_WAYS} If you cannot reach my files, give me the link from create_upload_link and wait until I say I am done, then call get_upload_link, show me the file names and ask me to confirm them.
 4. Call schedule_post with the account ID, platform, content, media keys (if any), and scheduled time.`,
                 },

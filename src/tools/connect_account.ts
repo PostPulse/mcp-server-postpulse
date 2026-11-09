@@ -12,6 +12,7 @@ import { logger } from '../logger';
  */
 export const CONNECTABLE_PLATFORMS = [
     'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'TIKTOK', 'THREADS', 'LINKEDIN', 'X_TWITTER', 'BLUE_SKY', 'TELEGRAM', 'PINTEREST',
+    'WHATSAPP',
 ] as const;
 
 /** Comma-separated CONNECTABLE_PLATFORMS for tool and prompt descriptions. */
@@ -30,6 +31,7 @@ const PLATFORM_NAMES: Record<string, string> = {
     BLUE_SKY: 'Bluesky',
     TELEGRAM: 'Telegram',
     PINTEREST: 'Pinterest',
+    WHATSAPP: 'WhatsApp',
 };
 
 const PLATFORM_NOTES: Record<string, string> = {
@@ -38,13 +40,17 @@ const PLATFORM_NOTES: Record<string, string> = {
     FACEBOOK_PAGE: 'Facebook: sign in as a Facebook user who manages your Pages, then pick on the PostPulse page which Pages to connect. Each Page becomes its own FACEBOOK_PAGE account (and uses a seat); post to it directly, without list_chats.',
     YOUTUBE: 'YouTube: the Google account must have a YouTube channel.',
     PINTEREST: 'Pinterest: after connecting, call list_chats for this account to pick the board to pin to.',
+    WHATSAPP: 'WhatsApp: in the Meta window pick your business portfolio and the WhatsApp Business Account with its phone number, then pick on the PostPulse page which WhatsApp Business Accounts to connect. Each becomes its own WHATSAPP account (and uses a seat); call list_chats for it to get the numbers to send from. Contact lists are created on the PostPulse website (https://post-pulse.com/app/accounts): adding contacts confirms that they agreed to receive your messages.',
 };
 
-const TELEGRAM_GUIDANCE = `Telegram cannot be connected with a link from the chat. To connect it:
+/** Platforms connected on the PostPulse website only: the tool returns these steps instead of a link. */
+const WEBSITE_ONLY_GUIDANCE: Record<string, string> = {
+    TELEGRAM: `Telegram cannot be connected with a link from the chat. To connect it:
 1. Open https://post-pulse.com/app/accounts and sign in with the same login you use for this chat (Google or email).
 2. Connect Telegram there.
 3. Add the PostPulse bot to the channel or group you want to post to.
-4. Come back and tell me, and I will check with list_accounts and list_chats for the Telegram account.`;
+4. Come back and tell me, and I will check with list_accounts and list_chats for the Telegram account.`,
+};
 
 const BILLING_URL = 'https://post-pulse.com/app/billing';
 
@@ -155,9 +161,10 @@ export async function handleConnectAccount(
             platform = account.platform;
         }
 
-        if (platform === 'TELEGRAM') {
-            log('telegram_guidance');
-            return textResult(TELEGRAM_GUIDANCE);
+        const guidance = WEBSITE_ONLY_GUIDANCE[platform!];
+        if (guidance) {
+            log(`${platform!.toLowerCase()}_guidance`);
+            return textResult(guidance);
         }
 
         if (!reconnect) {

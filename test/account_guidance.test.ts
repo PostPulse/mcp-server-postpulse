@@ -12,6 +12,7 @@ let calls: string[] = [];
         calls.push(`GET ${url}`);
         if (url === '/v1/accounts') return { data: accounts };
         if (url === '/v1/accounts/7/chats') return { data: [{ id: '123', name: 'My Page' }] };
+        if (url === '/v1/accounts/9/chats') return { data: [{ id: '1065', title: 'Acme +44 7700 900123', type: 'PHONE_NUMBER' }] };
         throw new Error(`unexpected GET ${url}`);
     },
     post: async (url: string) => {
@@ -52,6 +53,13 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.equal(result.isError, undefined);
         assert.deepEqual(JSON.parse(result.content[0].text), [{ id: '123', name: 'My Page' }]);
         assert.deepEqual(calls, ['GET /v1/accounts', 'GET /v1/accounts/7/chats']);
+    }],
+    ['list_chats: WHATSAPP account lists its phone numbers', async () => {
+        accounts = [...ACCOUNTS, { id: 9, platform: 'WHATSAPP', accountUsername: 'WhatsApp Business account' }]; calls = [];
+        const result: any = await handleListChats({ accountId: 9 }, {});
+        assert.equal(result.isError, undefined);
+        assert.equal(JSON.parse(result.content[0].text)[0].type, 'PHONE_NUMBER');
+        assert.deepEqual(calls, ['GET /v1/accounts', 'GET /v1/accounts/9/chats']);
     }],
     ['schedule_post: unknown account is answered without posting', async () => {
         accounts = ACCOUNTS; calls = [];

@@ -135,6 +135,24 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.match(text(result), /list_chats for the Telegram account/);
         assert.equal(linkCalls().length, 0);
     }],
+    ['WhatsApp: a connect link like any other platform, with the WhatsApp note', async () => {
+        const result = await handleConnectAccount({ platform: 'WHATSAPP' }, {});
+        assert.equal(result.isError, undefined);
+        assert.deepEqual(calls.map((c) => c.url), ['/v1/accounts/can-connect', '/v1/accounts/connect-links']);
+        assert.deepEqual(linkCalls()[0].body, { platform: 'WHATSAPP', origin: 'MCP' });
+        assert.match(text(result), /\[Connect WhatsApp\]\(https:\/\/post-pulse\.com\/oauth\/connect\//);
+        assert.match(text(result), /call list_chats for it to get the numbers to send from/);
+    }],
+    ['WhatsApp reconnect by accountId: a reconnect link for that account', async () => {
+        getHandler = (url) => {
+            if (url === '/v1/accounts') return { data: [...ACCOUNTS, { id: 9, platform: 'WHATSAPP', needsReauthorization: true }] };
+            throw new Error(`unexpected GET ${url}`);
+        };
+        const result = await handleConnectAccount({ accountId: 9 }, {});
+        assert.equal(result.isError, undefined);
+        assert.deepEqual(linkCalls()[0].body, { platform: 'WHATSAPP', accountId: 9, origin: 'MCP' });
+        assert.match(text(result), /\[Reconnect WhatsApp\]/);
+    }],
     ['neither platform nor accountId: error', async () => {
         const result = await handleConnectAccount({}, {});
         assert.equal(result.isError, true);
