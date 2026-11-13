@@ -120,9 +120,43 @@ const tests: Array<[string, () => Promise<void>]> = [
     ['WhatsApp fields sent for another platform are ignored', async () => {
         const { publication } = await schedule({
             platform: 'TELEGRAM', telegramChannelId: 'chat-1', content: 'Hi', whatsappPhoneNumberId: 'phone-1', templateName: 'x',
+            androidVideoCompat: 'REPACK',
         });
         assert.deepEqual(publication.platformSettings, { type: 'TELEGRAM' });
         assert.deepEqual(publication.posts, [{ content: 'Hi', chatId: 'chat-1' }]);
+    }],
+    ['WhatsApp: androidVideoCompat chosen by the user goes in platformSettings as given', async () => {
+        for (const androidVideoCompat of ['REPACK', 'SEND_AS_IS']) {
+            const { publication } = await schedule({
+                platform: 'WHATSAPP', whatsappPhoneNumberId: 'phone-1', contactListId: 42, templateName: 'promo_video',
+                templateLanguage: 'en', mediaPaths: [KEYS[1]], androidVideoCompat,
+            });
+            assert.deepEqual(publication.platformSettings, {
+                type: 'WHATSAPP', contactListId: 42, templateName: 'promo_video', templateLanguage: 'en', androidVideoCompat,
+            });
+            assert.deepEqual(publication.posts, [{ chatId: 'phone-1', attachmentPaths: [KEYS[1]] }]);
+        }
+    }],
+    ['WhatsApp: a header video without androidVideoCompat is sent without the field, so the API decides', async () => {
+        const { publication } = await schedule({
+            platform: 'WHATSAPP', whatsappPhoneNumberId: 'phone-1', contactListId: 42, templateName: 'promo_video',
+            templateLanguage: 'en', mediaPaths: [KEYS[1]],
+        });
+        assert.equal('androidVideoCompat' in publication.platformSettings, false);
+    }],
+    ['WhatsApp: the API refusal asking for androidVideoCompat reaches the agent word for word', async () => {
+        reset();
+        const refusal = 'WhatsApp template \'promo_video\' (en): the header video has its index (the MP4 moov box) at the end of the file,'
+            + ' so WhatsApp on Android may fail to play it. Set androidVideoCompat in the WhatsApp platform settings to REPACK'
+            + ' to let PostPulse move the index to the front without re-encoding, or to SEND_AS_IS to send the video unchanged';
+        failure = { status: 400, data: { error: refusal } };
+        const result: any = await handleSchedulePost({
+            accountId: ACCOUNT_ID, scheduledTime: AT, platform: 'WHATSAPP', whatsappPhoneNumberId: 'phone-1', contactListId: 42,
+            templateName: 'promo_video', templateLanguage: 'en', mediaPaths: [KEYS[1]],
+        }, {});
+        assert.equal(result.isError, true);
+        assert.match(result.content[0].text, /status code 400/);
+        assert.ok(result.content[0].text.includes(JSON.stringify({ error: refusal })));
     }],
     ['an API refusal of a story comes back as an error', async () => {
         reset();

@@ -152,7 +152,8 @@ List the approved message templates of a `WHATSAPP` account. A WhatsApp post sen
 - `bodyParameters` — a value for every key in `bodyParameterKeys` (`"1"`, `"2"`, … for `POSITIONAL` templates, the variable names for `NAMED` ones);
 - `headerParameter` — only when `headerParameterKey` is set, up to 60 characters;
 - `buttonParameters` — the end of the URL of each button with `dynamicUrl: true`, keyed by the button's index;
-- `mediaPaths` — exactly one image or video when `headerFormat` is `IMAGE` or `VIDEO`.
+- `mediaPaths` — exactly one image or video when `headerFormat` is `IMAGE` or `VIDEO`;
+- `androidVideoCompat` — only for a header video with its index (the MP4 `moov` box) at the end of the file, which WhatsApp on Android may fail to play: `schedule_post` refuses such a video until the user chooses `REPACK` or `SEND_AS_IS`.
 
 Templates with `supported: false` cannot be sent (`unsupportedReason` says why). Templates are created in WhatsApp Manager, not in PostPulse.
 
@@ -271,6 +272,7 @@ Schedule a social media post to one or more connected accounts. Supports platfor
 | `headerParameter` | string | No | Value of the text header variable (WhatsApp) |
 | `bodyParameters` | object | No | Body variable values by key, e.g. `{"1": "20%", "2": "Sunday"}` (WhatsApp) |
 | `buttonParameters` | object | No | URL endings of buttons with a dynamic URL, by button index, e.g. `{"0": "autumn-2026"}` (WhatsApp) |
+| `androidVideoCompat` | string | No | `REPACK` or `SEND_AS_IS`, for a header video with its index (the MP4 `moov` box) at the end of the file (WhatsApp). The API refuses such a video while this is not set, because WhatsApp on Android may fail to play it. `REPACK`: PostPulse moves the index to the front without re-encoding. `SEND_AS_IS`: the file is sent unchanged. The value is the user's decision, so the agent asks them when the API asks for it. No default |
 
 ### `list_posts`
 

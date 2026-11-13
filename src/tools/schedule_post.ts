@@ -29,6 +29,7 @@ export const schedulePostTool = {
         headerParameter: z.string().optional().describe('WhatsApp only: value of the text header variable, when the template has headerParameterKey'),
         bodyParameters: z.record(z.string(), z.string()).optional().describe('WhatsApp only: body variable values by key, one for every key in the template\'s bodyParameterKeys, e.g. {"1": "20%", "2": "Sunday"}'),
         buttonParameters: z.record(z.string(), z.string()).optional().describe('WhatsApp only: end of the URL of each button with dynamicUrl, by the button\'s index in the template\'s buttons, e.g. {"0": "autumn-2026"}'),
+        androidVideoCompat: z.enum(['REPACK', 'SEND_AS_IS']).optional().describe('WhatsApp only, for a template with a VIDEO header whose video has its index (the MP4 moov box) at the end of the file, which WhatsApp on Android may fail to play: schedule_post refuses such a video while this is not set, and says so. REPACK: PostPulse moves the index to the front without re-encoding. SEND_AS_IS: the file is sent unchanged. The value is the sender\'s decision, so it is the one the user chose; when schedule_post asks for it and the user has not chosen yet, ask them'),
     }),
 };
 
@@ -54,7 +55,8 @@ export async function handleSchedulePost(args: any, extra: any) {
         templateLanguage,
         headerParameter,
         bodyParameters,
-        buttonParameters
+        buttonParameters,
+        androidVideoCompat
     } = args;
 
     const token = (extra as any)?.authInfo?.token || '';
@@ -107,6 +109,8 @@ export async function handleSchedulePost(args: any, extra: any) {
             if (headerParameter) platformSettings.headerParameter = headerParameter;
             if (bodyParameters) platformSettings.bodyParameters = bodyParameters;
             if (buttonParameters) platformSettings.buttonParameters = buttonParameters;
+            // No default: the API refuses a header video with its moov box at the end until the sender decides
+            if (androidVideoCompat) platformSettings.androidVideoCompat = androidVideoCompat;
         }
 
         // 3. Construct Post Data
