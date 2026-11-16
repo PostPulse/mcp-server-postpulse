@@ -19,7 +19,7 @@ export const listPostsTool = {
         fromDate: z.string().describe('Start of the range: an ISO-8601 date (2026-10-01, start of that day UTC) or timestamp (2026-10-01T00:00:00Z)'),
         toDate: z.string().describe('End of the range: an ISO-8601 date (2026-10-31, end of that day UTC) or timestamp'),
         platform: z.string().optional().describe('Only posts to this platform, as list_accounts returns it (e.g. INSTAGRAM, TIKTOK, FACEBOOK_PAGE)'),
-        status: z.enum(POST_STATUSES).optional().describe('Only posts with this overall status. COMPLETED = published everywhere, PARTIALLY_COMPLETED = published on some platforms'),
+        status: z.enum(POST_STATUSES).optional().describe('Only posts with this overall status. COMPLETED = published everywhere, PARTIALLY_COMPLETED = published on some platforms or chats, or a WhatsApp broadcast reached only part of its recipients'),
     }),
 };
 

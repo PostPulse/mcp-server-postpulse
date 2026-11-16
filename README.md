@@ -284,7 +284,7 @@ List posts scheduled or published in a date range (by scheduled time), oldest fi
 | `fromDate` | string | Yes | ISO-8601 date (`2026-10-01`, start of that UTC day) or timestamp |
 | `toDate` | string | Yes | ISO-8601 date (`2026-10-31`, end of that UTC day) or timestamp |
 | `platform` | string | No | Only posts to this platform, as `list_accounts` returns it |
-| `status` | string | No | `DRAFT`, `SCHEDULED`, `AWAITING_MEDIA`, `MEDIA_IMPORT_FAILED`, `IN_PROGRESS`, `COMPLETED`, `FAILED` or `PARTIALLY_COMPLETED` |
+| `status` | string | No | `DRAFT`, `SCHEDULED`, `AWAITING_MEDIA`, `MEDIA_IMPORT_FAILED`, `IN_PROGRESS`, `COMPLETED`, `FAILED` or `PARTIALLY_COMPLETED` (published on some platforms or chats, or a WhatsApp broadcast reached only part of its recipients) |
 
 ### `get_post`
 
