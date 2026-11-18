@@ -69,7 +69,7 @@ const tests: Array<[string, () => Promise<void>]> = [
         const result: any = await handleListPosts({ fromDate: '2026-07-01', toDate: '2026-09-30' }, {});
         assert.equal(result.isError, undefined);
     }],
-    ['get_post: per-account outcome with url, error and metrics; media without URLs', async () => {
+    ['get_post: per-account outcome with url, error and metrics; media and cover without URLs', async () => {
         reset();
         responses['/v1/posts/2'] = {
             id: 2,
@@ -81,6 +81,7 @@ const tests: Array<[string, () => Promise<void>]> = [
                     posts: [{
                         id: 100, platformPostIdentifier: '1790', permalink: 'https://www.instagram.com/reel/DAbC/', content: 'Both',
                         media: [{ key: 'a.mp4', path: 'user-1/a.mp4', url: 'https://s3/presigned', filename: 'clip.mp4', contentType: 'video/mp4' }],
+                        thumbnail: { key: 'cover.jpg', path: 'user-1/cover.jpg', url: 'https://s3/presigned-cover' },
                         metrics: {
                             likes: 12, comments: 3, shares: 1, lastUpdatedTime: '2026-10-24T10:00:00Z',
                             platformAnalytics: { reach: 640, saved: 7 },
@@ -101,6 +102,7 @@ const tests: Array<[string, () => Promise<void>]> = [
             posts: [{
                 id: 100, url: 'https://www.instagram.com/reel/DAbC/', platformPostId: '1790', content: 'Both',
                 media: [{ key: 'user-1/a.mp4', filename: 'clip.mp4', contentType: 'video/mp4' }],
+                thumbnail: 'user-1/cover.jpg',
                 metrics: {
                     likes: 12, comments: 3, shares: 1, lastUpdatedTime: '2026-10-24T10:00:00Z',
                     platformAnalytics: { reach: 640, saved: 7 },

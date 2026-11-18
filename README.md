@@ -11,6 +11,7 @@ An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse
 - **Media management** — Find files in the media library, import images and videos by URL, give the user a link to upload files from their device, or upload small files as base64
 - **Account management** — List and manage all connected social media accounts
 - **Read your posts** — List posts by date range and get each post's per-platform status, public link, error and metrics
+- **Edit posts** — Move a post that is not published yet to another time, or change its text, media or cover, keeping everything else
 - **Delete posts and media** — Permanently delete a post or one account's publication of it, optionally on the social network too, and files from the media library
 - **Connect social accounts from the chat** — Get a secure link to connect or reconnect an account without opening the PostPulse app
 - **OAuth 2.0 authentication** — Secure access via Auth0-based token verification
@@ -288,7 +289,7 @@ List posts scheduled or published in a date range (by scheduled time), oldest fi
 
 ### `get_post`
 
-Get one post with its outcome on each account: `publicationId` (for `delete_post`), platform, status, public link to the published post (`url`), platform post id, error message, text, attached media (`key` for `delete_media`, file name and type) and the latest metrics PostPulse has:
+Get one post with its outcome on each account: `publicationId` (for `delete_post`), platform, status, the account's items in `posts[]` (an item's `id` is `postEntryId` for `edit_post`), public link to the published post (`url`), platform post id, error message, text, attached media (`key` for `delete_media`, file name and type), the key of the cover image (`thumbnail`) when one is set, and the latest metrics PostPulse has:
 
 - `impressions`, `engagements`, `likes`, `shares`, `comments` and `profileClicks`, common to all platforms. A metric the platform does not report is `null`;
 - `lastUpdatedTime`;
@@ -310,6 +311,38 @@ Show how a WhatsApp broadcast went: the number of messages that are pending, sen
 |---|---|---|---|
 | `accountId` | number | Yes | ID of the `WHATSAPP` account |
 | `postId` | number | Yes | `publications[].posts[].id` of the WhatsApp publication from `get_post` (not the id of the scheduled post itself) |
+
+### `edit_post`
+
+Change a post that is not published yet (`DRAFT`, `SCHEDULED`, `AWAITING_MEDIA` or `MEDIA_IMPORT_FAILED`) in place, through `PATCH /v1/posts/{id}`: its scheduled time, and the text, media or cover of its items. Whatever is not passed stays as it is, ids included, and a draft stays a draft.
+
+- The scheduled time belongs to the whole post: a new time moves it on all its accounts.
+- A post has one or more items per account (`publications[].posts[]` in `get_post`, e.g. one per chat). A change names its item by `postEntryId`; a post with a single item needs none. When a post has several items and a change has no `postEntryId`, or names an item the post does not have, the tool lists the items and changes nothing.
+- `content` is the whole new text of the item. `mediaPaths` replaces all its media. Replacing or removing media also removes the item's cover, unless `thumbnailPath` sets a new one in the same change.
+- Removing is explicit: `clearContent: true` removes the text, `removeMedia: true` removes the media and the cover. An empty `content` (also only spaces) or an empty `mediaPaths` is refused. Some clients fill every optional field with `""` or `[]`, and such a call must not erase anything.
+- The result has `post`, the post after the edit as `get_post` shows it, and `before`, the previous values of what changed, in the form of `edit_post` inputs (`scheduledTime` and `changes`). Another `edit_post` with them puts the previous time, text and media back. Replaced files stay in the media library until `delete_media` removes them. The tool reads the post before each edit to fill `before`.
+- The tool is marked destructive: the previous values exist only in `before` of that call.
+- The text of a WhatsApp broadcast comes from its template and cannot be changed. Platform settings (title, privacy, publication type) and the accounts or chats of a post are not part of an edit.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `postId` | number | Yes | Post id from `list_posts`, `get_post` or `schedule_post` |
+| `scheduledTime` | string | No | New time for the whole post: ISO-8601 with `Z` or an offset (e.g. `2026-11-20T14:00:00+02:00`), in the future. A time without an offset is refused, because the API would read it as UTC |
+| `changes` | object[] | No | At most one change per item, see below |
+
+Fields of a change (at least one besides `postEntryId`):
+
+| Name | Type | Description |
+|---|---|---|
+| `postEntryId` | number | `publications[].posts[].id` from `get_post`. Not needed for a post with a single item |
+| `content` | string | The whole new text, replacing the current one. Not empty |
+| `clearContent` | boolean | `true` removes the text. Not together with `content` |
+| `mediaPaths` | string[] | Media keys from `list_media`, `upload_media`, `get_upload_link` or `get_post`, replacing all media of the item, in this order. Not empty |
+| `removeMedia` | boolean | `true` removes all media of the item and its cover. Not together with `mediaPaths` or `thumbnailPath` |
+| `thumbnailPath` | string | Media key of an image for the cover of the item's video, used by Instagram Reels |
+
+At least `scheduledTime` or one change is required.
 
 ### `delete_post`
 
@@ -410,4 +443,15 @@ Assistant: list_accounts → [] ("No social accounts are connected yet")
 User:      "Done"
 Assistant: list_accounts → [{ id: 123, platform: LINKEDIN, ... }]
            schedule_post(accountId: 123, platform: LINKEDIN, content: "Hello LinkedIn!", scheduledTime: ...)
+```
+### Editing a scheduled post
+
+```
+User:      "Move my Friday reel to Saturday 12:00 Kyiv time and change the caption to 'Weekend drop!'"
+Assistant: list_posts(fromDate: ..., toDate: ...) → [{ id: 5, status: SCHEDULED, platforms: [INSTAGRAM], ... }]
+           edit_post(postId: 5, scheduledTime: "2026-11-21T12:00:00+02:00", changes: [{ content: "Weekend drop!" }])
+           → { post: the post with the new time and text, same ids, same video and cover,
+               before: { scheduledTime: "2026-11-20T10:00:00Z", changes: [{ postEntryId: 500, content: "Friday reel!" }] } }
+User:      "Actually, put it back"
+Assistant: edit_post(postId: 5, scheduledTime: "2026-11-20T10:00:00Z", changes: [{ postEntryId: 500, content: "Friday reel!" }])
 ```
