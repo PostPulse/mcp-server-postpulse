@@ -37,6 +37,7 @@ import { schedulePostTool, handleSchedulePost } from './tools/schedule_post';
 import { connectAccountTool, handleConnectAccount, CONNECTABLE_PLATFORMS_TEXT } from './tools/connect_account';
 import { listPostsTool, handleListPosts } from './tools/list_posts';
 import { getPostTool, handleGetPost } from './tools/get_post';
+import { editPostTool, handleEditPost } from './tools/edit_post';
 import { deletePostTool, handleDeletePost } from './tools/delete_post';
 import { deleteMediaTool, handleDeleteMedia } from './tools/delete_media';
 import {
@@ -108,6 +109,14 @@ Reading posts:
 - get_post returns one post's outcome on each account: status, public link (url), error and the latest metrics. Call it per post when the user asks for links, failures or performance.
 - Metrics are those PostPulse collects for posts it published; a metric the platform does not report is null, not zero.
 - metrics.platformAnalytics holds the platform's own analytics fields for the post, named as the platform names them (the platform is the publication's platform). Use it for questions the common metrics cannot answer, such as reach, saves or watch time. Its fields vary by platform and post type, and some platforms report them with a delay of a day or more.
+
+Editing:
+- edit_post changes a post that is not published yet in place: its scheduled time, and the text, media or cover of its items. Whatever is not passed stays as it is, ids included, and a draft stays a draft. A published post, or one being published, cannot be edited.
+- The scheduled time belongs to the whole post: a new time moves it on all its accounts.
+- get_post shows the items of a post (publications[].posts[], whose id is postEntryId in edit_post) with their current text, media keys and cover.
+- content is the whole new text of an item and replaces the current one. Removing the text or the media takes clearContent or removeMedia; an empty content or mediaPaths is refused.
+- The result of edit_post has before: the previous values of what changed, in the form of edit_post inputs. Another edit_post with them puts the previous time, text and media back. Replaced files stay in the media library until delete_media removes them.
+- Platform settings (title, privacy, publication type) and the accounts or chats of a post are not part of an edit.
 
 Deleting:
 - delete_post and delete_media cannot be undone: say what will be deleted and get the user's confirmation first.
@@ -241,6 +250,21 @@ Deleting:
             openWorldHint: false,
         },
     }, handleSchedulePost);
+
+    server.registerTool(editPostTool.name, {
+        title: 'Edit Post',
+        description: editPostTool.description,
+        inputSchema: editPostTool.inputSchema,
+        annotations: {
+            title: 'Edit Post',
+            readOnlyHint: false,
+            // The previous text and media are overwritten; only another edit with the values in `before` puts them back.
+            destructiveHint: true,
+            // Ids stay the same, so the same call twice leaves the same post.
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    }, handleEditPost);
 
     server.registerTool(listPostsTool.name, {
         title: 'List Posts',

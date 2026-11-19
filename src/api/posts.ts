@@ -33,7 +33,25 @@ interface ApiPublishedPost {
     content?: string;
     // `path` is the same key upload_media returns; the API's own `key` is only its last segment.
     media?: Array<{ path?: string; filename?: string; contentType?: string }>;
+    thumbnail?: { path?: string };
     metrics?: ApiMetrics;
+}
+
+/**
+ * Body of `PATCH /v1/posts/{id}`. Whatever is left out stays as it is. `attachmentPaths` replaces all attachments of
+ * that post item, and replacing them without `thumbnailPath` drops the cover. Removing is explicit: `clearContent` and
+ * `removeAttachments`, because an empty `content` or `attachmentPaths` is what a client sends for an unfilled field.
+ */
+export interface ApiPostPatch {
+    scheduledTime?: string;
+    posts?: Array<{
+        id: number;
+        content?: string;
+        clearContent?: boolean;
+        attachmentPaths?: string[];
+        removeAttachments?: boolean;
+        thumbnailPath?: string;
+    }>;
 }
 
 interface ApiMetrics {
@@ -79,6 +97,8 @@ export interface PostDetails {
             content?: string;
             error?: string;
             media: Array<{ key?: string; filename?: string; contentType?: string }>;
+            // Media key of the cover image, when one is set.
+            thumbnail?: string;
             metrics?: ApiMetrics;
         }>;
     }>;
@@ -113,6 +133,7 @@ export function toPostDetails(post: ApiPost): PostDetails {
                 content: p.content,
                 error: p.errorMessage,
                 media: (p.media ?? []).map((m) => ({ key: m.path, filename: m.filename, contentType: m.contentType })),
+                thumbnail: p.thumbnail?.path,
                 metrics: p.metrics,
             })),
         })),
