@@ -28,7 +28,7 @@ export interface McpHandlerOptions {
  * Unified handler for all MCP requests (POST, GET and DELETE).
  * - POST with an initialize request -> creates a new session.
  * - POST with a session ID -> a request of that session (tool call etc.).
- * - GET with a session ID (header or query) -> the session's SSE stream.
+ * - GET with a session ID -> the session's SSE stream.
  * - DELETE with a session ID -> the client ends its session.
  */
 export function createMcpHandler(options: McpHandlerOptions) {
@@ -36,15 +36,8 @@ export function createMcpHandler(options: McpHandlerOptions) {
 
     return async (req: express.Request, res: express.Response) => {
         // 1. Discover Session ID
-        // Check headers first (standard), then query params (some SSE clients)
-        const sessionId = (req.headers['mcp-session-id'] as string | undefined)
-            || (req.query['session_id'] as string | undefined)
-            || (req.query['mcp-session-id'] as string | undefined);
-
-        // If session ID was only in query, inject it into headers for the SDK transport
-        if (sessionId && !req.headers['mcp-session-id']) {
-            req.headers['mcp-session-id'] = sessionId;
-        }
+        // Only the header counts, as in the MCP specification: the SDK transport reads nothing else.
+        const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
         const isInitialize = req.method === 'POST' && isInitializeRequest(req.body);
         // The client of the token (POST only): it ties a request to a session that is gone to the session started next.
@@ -61,7 +54,7 @@ export function createMcpHandler(options: McpHandlerOptions) {
             // The session expired or the server restarted since.
             logger.info(
                 { method: req.method, initialize: isInitialize, clientId },
-                `MCP Session not found: ${String(sessionId).slice(0, MAX_LOGGED_SESSION_ID)}`,
+                `MCP Session not found: ${sessionId.slice(0, MAX_LOGGED_SESSION_ID)}`,
             );
             if (!isInitialize) {
                 if (req.method === 'GET') {
@@ -109,7 +102,7 @@ export function createMcpHandler(options: McpHandlerOptions) {
                 res.status(200).type('html').send(landingHtml);
                 return;
             }
-            res.status(400).send('Mcp-Session-Id header or session_id query parameter is required for SSE');
+            res.status(400).send('Mcp-Session-Id header is required for SSE');
         } else {
             res.status(400).json({
                 jsonrpc: '2.0',

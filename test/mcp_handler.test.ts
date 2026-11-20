@@ -101,9 +101,9 @@ async function echo(client: Client, text: string) {
     return (result.content as Array<{ text: string }>)[0].text;
 }
 
-/** A raw request with a session ID, as a client that keeps an old one sends it. */
-async function raw(method: 'GET' | 'POST', sessionId: string, body?: object) {
-    const response = await fetch(baseUrl, {
+/** A raw request with a session ID, as a client that keeps an old one sends it. `query` goes after the URL. */
+async function raw(method: 'GET' | 'POST', sessionId: string, body?: object, query = '') {
+    const response = await fetch(baseUrl + query, {
         method,
         headers: {
             'content-type': 'application/json',
@@ -271,6 +271,28 @@ const tests: Array<[string, () => Promise<void>]> = [
         assert.match(answer.text, /"text":"done"/);
         await waitFor('the response of the call to close', () => sessions.stats().busy === 0);
         advance(IDLE + 1);
+        assert.deepEqual((await sweepAll()).expired.map((e) => e.sessionId), [sessionId]);
+    }],
+    ['a session ID in the query string is not read: the request is one without a session', async () => {
+        const sessionId = (await raw('POST', '', INITIALIZE)).sessionId!;
+        advance(IDLE); // one more millisecond without a request and the session expires
+        const logBefore = logLines.length;
+        const noSessionPost = { jsonrpc: '2.0', error: { code: -32000, message: 'Bad Request: Initialize flow must start with a POST request' }, id: null };
+
+        for (const id of [sessionId, '11111111-2222-3333-4444-555555555555']) {
+            for (const query of [`?session_id=${id}`, `?mcp-session-id=${id}`]) {
+                const get = await raw('GET', '', undefined, query);
+                assert.equal(get.status, 400, `GET ${query}`);
+                assert.equal(get.text, 'Mcp-Session-Id header is required for SSE');
+                const post = await raw('POST', '', { jsonrpc: '2.0', id: 2, method: 'tools/list' }, query);
+                assert.equal(post.status, 400, `POST ${query}`);
+                assert.deepEqual(JSON.parse(post.text), noSessionPost);
+            }
+        }
+        // Nothing looked a session up by these IDs, and none of the requests was activity of the live session.
+        assert.deepEqual(logLines.slice(logBefore), []);
+        assert.deepEqual(sessions.stats(), { sessions: 1, busy: 0 });
+        advance(1);
         assert.deepEqual((await sweepAll()).expired.map((e) => e.sessionId), [sessionId]);
     }],
     ['a GET with a long text in place of a session ID: 404, and the log line keeps only its start', async () => {
