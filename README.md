@@ -102,6 +102,7 @@ docker run -p 3000:3000 mcp-server-postpulse
 | `POSTPULSE_AUDIENCE` | `https://api.post-pulse.com` | API audience |
 | `POSTPULSE_API_URL` | `https://api.post-pulse.com` | PostPulse API base URL |
 | `REDIS_URL` | — | Redis connection URL for session/event persistence (required) |
+| `SESSION_IDLE_TIMEOUT_MINUTES` | `120` | An MCP session with no open request and no request for this long is closed (see [Sessions](#sessions)) |
 
 ## Tools
 
@@ -410,6 +411,10 @@ Apps of the Developer Portal follow the same 14-day rule; a removed app can be r
 | anything else | `404` (`{"error":"Not found"}` or plain text for HTML clients) |
 
 Every response carries `X-Robots-Tag: noindex, nofollow` so search engines never index this host.
+
+### Sessions
+
+Sessions live in the memory of the server process. A client ends its session with `DELETE` and the `Mcp-Session-Id` header. A session with no open request (a running tool call or a `GET` stream) and no request for `SESSION_IDLE_TIMEOUT_MINUTES` (2 hours by default) is closed by the server. A restart of the server ends all sessions as well. A request to a session that is gone gets `404` with the JSON-RPC error `Session not found`; the client then starts a new session with `initialize`, as the MCP specification requires.
 
 ## Example Workflow
 

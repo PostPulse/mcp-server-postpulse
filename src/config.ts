@@ -36,6 +36,10 @@ export const configSchema = z.object({
     .default(6)
     .describe('IP address family for the Redis connection: 4, 6, or 0 (try both). Defaults to 6 for backwards compatibility with IPv6-only Redis endpoints; set 4 for IPv4-only endpoints.'),
 
+  // A session with no open request and no request for this long is closed: most clients never send DELETE, and each
+  // session keeps its own McpServer in memory. The default matches the TTL of the session's events in Redis.
+  SESSION_IDLE_TIMEOUT_MINUTES: z.coerce.number().positive().default(120),
+
   // Sentry
   SENTRY_DSN: z.string().optional().describe('Sentry DSN for error monitoring'),
 

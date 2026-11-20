@@ -19,6 +19,7 @@ import { logger } from './logger';
 import { tokenVerifier } from './auth/token_verifier';
 import { claimAgentClient } from './agent_client';
 import { RedisEventStore } from './store/redis_event_store';
+import { SessionRegistry } from './session_registry';
 import { SERVER_VERSION } from './version';
 import {
     authThenParseBody,
@@ -406,9 +407,20 @@ Steps:
 const redis = new Redis(config.REDIS_URL, { family: config.REDIS_IP_FAMILY });
 const eventStore = new RedisEventStore(redis);
 
-// ─── Transport Registry ──────────────────────────────────────────────────────
+// ─── Session Registry ────────────────────────────────────────────────────────
 
-const transports = new Map<string, StreamableHTTPServerTransport>();
+const SESSION_IDLE_MS = config.SESSION_IDLE_TIMEOUT_MINUTES * 60 * 1000;
+// Every 5 minutes; more often only with a limit under 10 minutes (local checks).
+const SESSION_SWEEP_INTERVAL_MS = Math.min(5 * 60 * 1000, SESSION_IDLE_MS / 2);
+
+const sessions = new SessionRegistry<StreamableHTTPServerTransport>({ idleMs: SESSION_IDLE_MS });
+
+sessions.startSweeping(SESSION_SWEEP_INTERVAL_MS, (expired) => {
+    for (const { sessionId, idleMs } of expired) {
+        logger.info({ idleMinutes: Math.round(idleMs / 60000) }, `⌛ MCP Session expired: ${sessionId}`);
+    }
+    logger.info({ ...sessions.stats(), expired: expired.length }, 'MCP sessions in memory');
+});
 
 // ─── Express App ─────────────────────────────────────────────────────────────
 
@@ -531,7 +543,7 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
 
     // 2. Handle Existing Session
     if (sessionId) {
-        const transport = transports.get(sessionId);
+        const transport = sessions.get(sessionId);
         if (!transport) {
             if (req.method === 'GET') {
                 res.status(404).send('Session not found');
@@ -544,6 +556,7 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
             }
             return;
         }
+        sessions.track(sessionId, res);
         await transport.handleRequest(req, res, req.body);
         return;
     }
@@ -556,11 +569,12 @@ const handleMcp = async (req: express.Request, res: express.Response) => {
             sessionIdGenerator: () => randomUUID(),
             eventStore,
             onsessioninitialized: (sid) => {
-                transports.set(sid, transport);
+                // Called inside transport.handleRequest below, after server.connect(transport).
+                sessions.add(sid, transport, server);
                 logger.info(`✨ MCP Session started: ${sid}`);
             },
             onsessionclosed: (sid) => {
-                transports.delete(sid);
+                sessions.remove(sid);
                 logger.info(`👋 MCP Session closed: ${sid}`);
             },
         });
