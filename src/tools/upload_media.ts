@@ -33,7 +33,7 @@ export const uploadMediaTool = {
 export async function handleUploadMedia({ mediaUrl, mediaData, mediaType, mediaName, importId }: { mediaUrl?: string, mediaData?: string, mediaType?: string, mediaName?: string, importId?: number | null }, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
     const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
 
     // One line per call. Never add mediaUrl, mediaData or a backend error message here: a signed URL is a
     // bearer secret, and the import status echoes it in its error text.

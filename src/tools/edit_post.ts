@@ -141,8 +141,7 @@ export async function handleEditPost({ postId, scheduledTime, changes = [] }: Ed
     }
 
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
 
     // The post as it is now: it resolves the items and gives the previous values for `before`.
     let current: ApiPost;

@@ -11,8 +11,7 @@ export const deleteMediaTool = {
 
 export async function handleDeleteMedia({ key }: { key: string }, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     // The API addresses a file by the last segment of its key and adds the caller's own user id itself.
     const id = key.substring(key.lastIndexOf('/') + 1);
     try {

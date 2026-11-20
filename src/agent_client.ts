@@ -9,7 +9,6 @@ const CLAIM_TIMEOUT_MS = 2_000;
 
 interface AuthLike {
     token?: string;
-    clientId?: string;
 }
 
 /**
@@ -19,7 +18,7 @@ interface AuthLike {
  */
 export function claimAgentClient(auth: AuthLike | undefined): void {
     if (!auth?.token) return;
-    createApiClient(auth.token, auth.clientId || '')
+    createApiClient(auth.token)
         .post(CLAIM_CLIENT_PATH, undefined, { timeout: CLAIM_TIMEOUT_MS })
         .catch((error: any) => logger.warn(
             { status: error?.response?.status, err: error?.message },

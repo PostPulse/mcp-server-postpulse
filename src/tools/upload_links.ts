@@ -89,8 +89,7 @@ function buildAgentText(id: string): string {
 
 export async function handleCreateUploadLink(_args: any, extra: any) {
     const token = extra?.authInfo?.token || '';
-    const clientId = extra?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     const log = (fields: { outcome: string; status?: number; uploadLinkId?: string }) => logCall(createUploadLinkTool.name, extra, fields);
 
     try {
@@ -142,8 +141,7 @@ function buildStatusGuidance({ expiresAt, files }: ApiUploadLinkStatus): string 
 
 export async function handleGetUploadLink({ uploadLinkId }: { uploadLinkId: string }, extra: any) {
     const token = extra?.authInfo?.token || '';
-    const clientId = extra?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     const log = (fields: { outcome: string; status?: number; files?: number }) => logCall(getUploadLinkTool.name, extra, { uploadLinkId, ...fields });
 
     try {

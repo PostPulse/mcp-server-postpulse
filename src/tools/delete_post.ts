@@ -17,8 +17,7 @@ export async function handleDeletePost(
     extra: any,
 ) {
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     const url = publicationId ? `/v1/posts/${postId}/accounts/${publicationId}` : `/v1/posts/${postId}`;
     const deleted = publicationId ? `Publication ${publicationId} of post ${postId}` : `Post ${postId}`;
     const onPlatforms = deleteFromPlatform

@@ -60,8 +60,7 @@ export async function handleSchedulePost(args: any, extra: any) {
     } = args;
 
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
 
     try {
         // 0. The account must be one of the user's: agents send ids from an earlier conversation or of

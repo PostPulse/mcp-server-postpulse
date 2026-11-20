@@ -40,8 +40,7 @@ export async function handleGetWhatsAppDelivery({ accountId, postId }: { account
 /** GET /v1/accounts/{accountId}/whatsapp/{path} once the account is checked to be one of the user's WhatsApp accounts. */
 async function getForWhatsAppAccount(accountId: number, path: string, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     try {
         const accounts = (await client.get<ApiAccount[]>('/v1/accounts')).data;
         const account = accounts.find((acc) => acc.id === accountId);

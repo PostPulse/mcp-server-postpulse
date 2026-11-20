@@ -29,8 +29,7 @@ export const listMediaTool = {
 
 export async function handleListMedia({ page, size }: { page?: number | null; size?: number | null }, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     try {
         const { data } = await client.get<ApiMediaPage>('/v1/media', {
             params: { page: page ?? 0, size: size ?? DEFAULT_PAGE_SIZE },
