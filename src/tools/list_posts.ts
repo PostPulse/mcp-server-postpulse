@@ -54,8 +54,7 @@ export async function handleListPosts(
     }
 
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     try {
         const response = await client.get<ApiPostListItem[]>('/v1/posts', {
             params: { fromDate: from.toISOString(), toDate: to.toISOString() },

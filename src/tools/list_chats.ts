@@ -12,8 +12,7 @@ export const listChatsTool = {
 
 export async function handleListChats({ accountId }: { accountId: number }, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     try {
         // Check the account first: agents call this with a made-up id (0), an id from an earlier
         // conversation, or a FACEBOOK_PAGE account. Each used to reach the API as a bare 400.

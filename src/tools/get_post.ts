@@ -12,8 +12,7 @@ export const getPostTool = {
 
 export async function handleGetPost({ postId }: { postId: number }, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     try {
         const response = await client.get<ApiPost>(`/v1/posts/${postId}`);
         return { content: [{ type: 'text' as const, text: JSON.stringify(toPostDetails(response.data), null, 2) }] };

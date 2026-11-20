@@ -10,8 +10,7 @@ export const listAccountsTool = {
 
 export async function handleListAccounts(_args: any, extra: any) {
     const token = (extra as any)?.authInfo?.token || '';
-    const clientId = (extra as any)?.authInfo?.clientId || '';
-    const client = createApiClient(token, clientId);
+    const client = createApiClient(token);
     try {
         const response = await client.get<ApiAccount[]>('/v1/accounts');
         const accounts = response.data.map(toAccountSummary);
