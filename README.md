@@ -387,9 +387,15 @@ No existing PostPulse account is needed: signing in through the MCP client (with
 
 MCP clients that support OAuth can register automatically via **Dynamic Client Registration** (RFC 7591). The server advertises a `registration_endpoint` in its OAuth metadata, so compliant clients (such as Claude Desktop, Cursor, etc.) will handle the entire OAuth flow — registration, authorization, and token exchange — without any manual setup from the user.
 
+### Inactive connections
+
+A connection with no activity for 14 days is removed automatically. Activity is a post scheduled through it or a new MCP session. After that the assistant can no longer refresh its sign-in, and a new sign-in may end on an "Unknown client" page. Reconnect PostPulse in your assistant to get a new connection; your PostPulse account, social accounts, posts and media are not affected.
+
 ### Pre-Registered Client Credentials
 
 If you already have client credentials created through the [PostPulse Developer Portal](https://post-pulse.com/app/portal/apps), you can configure your MCP client to use them directly instead of DCR. Pass your `client_id` and `client_secret` in the OAuth authorization code flow against the PostPulse authorization server.
+
+Apps of the Developer Portal follow the same 14-day rule; a removed app can be restored with the same `client_id` and `client_secret` on the "Deleted for inactivity" tab of the Applications page.
 
 ## HTTP Endpoints
 
