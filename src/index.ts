@@ -1,10 +1,7 @@
 import './instrument';
 import * as Sentry from '@sentry/node';
 import express from 'express';
-import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import cors from 'cors';
 import {
     mcpAuthMetadataRouter,
@@ -19,6 +16,8 @@ import { logger } from './logger';
 import { tokenVerifier } from './auth/token_verifier';
 import { claimAgentClient } from './agent_client';
 import { RedisEventStore } from './store/redis_event_store';
+import { SessionRegistry } from './session_registry';
+import { createMcpHandler, startSessionSweeper, type McpSessions } from './mcp_handler';
 import { SERVER_VERSION } from './version';
 import {
     authThenParseBody,
@@ -406,9 +405,14 @@ Steps:
 const redis = new Redis(config.REDIS_URL, { family: config.REDIS_IP_FAMILY });
 const eventStore = new RedisEventStore(redis);
 
-// ─── Transport Registry ──────────────────────────────────────────────────────
+// ─── Session Registry ────────────────────────────────────────────────────────
 
-const transports = new Map<string, StreamableHTTPServerTransport>();
+const SESSION_IDLE_MS = config.SESSION_IDLE_TIMEOUT_MINUTES * 60 * 1000;
+// Every 5 minutes; more often only with a limit under 10 minutes (local checks).
+const SESSION_SWEEP_INTERVAL_MS = Math.min(5 * 60 * 1000, SESSION_IDLE_MS / 2);
+
+const sessions: McpSessions = new SessionRegistry({ idleMs: SESSION_IDLE_MS });
+startSessionSweeper(sessions, SESSION_SWEEP_INTERVAL_MS);
 
 // ─── Express App ─────────────────────────────────────────────────────────────
 
@@ -511,84 +515,13 @@ app.get('/.well-known/mcp/server-card.json', (_req, res) => {
 
 // ─── MCP Request Handler ─────────────────────────────────────────────────────
 
-/**
- * Unified handler for all MCP requests (POST and GET).
- * - POST with initialization request -> creates a new session.
- * - POST with sessionId header -> standard MCP tool call/request.
- * - GET with sessionId (header or query) -> establishes SSE stream.
- */
-const handleMcp = async (req: express.Request, res: express.Response) => {
-    // 1. Discover Session ID
-    // Check headers first (standard), then query params (some SSE clients)
-    let sessionId = (req.headers['mcp-session-id'] as string | undefined)
-        || (req.query['session_id'] as string | undefined)
-        || (req.query['mcp-session-id'] as string | undefined);
-
-    // If session ID was only in query, inject it into headers for the SDK transport
-    if (sessionId && !req.headers['mcp-session-id']) {
-        req.headers['mcp-session-id'] = sessionId;
-    }
-
-    // 2. Handle Existing Session
-    if (sessionId) {
-        const transport = transports.get(sessionId);
-        if (!transport) {
-            if (req.method === 'GET') {
-                res.status(404).send('Session not found');
-            } else {
-                res.status(404).json({
-                    jsonrpc: '2.0',
-                    error: { code: -32001, message: 'Session not found' },
-                    id: null,
-                });
-            }
-            return;
-        }
-        await transport.handleRequest(req, res, req.body);
-        return;
-    }
-
-    // 3. Handle Initialization (POST only)
-    if (req.method === 'POST' && isInitializeRequest(req.body)) {
-        // Auth is required for initialization
-        // Note: authMiddleware is already applied to the outer route, but we check here for clarity
-        const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: () => randomUUID(),
-            eventStore,
-            onsessioninitialized: (sid) => {
-                transports.set(sid, transport);
-                logger.info(`✨ MCP Session started: ${sid}`);
-            },
-            onsessionclosed: (sid) => {
-                transports.delete(sid);
-                logger.info(`👋 MCP Session closed: ${sid}`);
-            },
-        });
-
-        const server = createMcpServer();
-        await server.connect(transport);
-        await transport.handleRequest(req, res, req.body);
-        claimAgentClient(req.auth);
-        return;
-    }
-
-    // 4. Fallback: Bad Request
-    if (req.method === 'GET') {
-        // A browser or crawler prefers HTML; an MCP client opening an SSE stream asks for
-        // text/event-stream (and keeps getting the 400 below, as the SDK expects).
-        if (req.accepts(['text/event-stream', 'text/html']) === 'text/html') {
-            res.status(200).type('html').send(LANDING_HTML);
-            return;
-        }
-        res.status(400).send('Mcp-Session-Id header or session_id query parameter is required for SSE');
-    } else {
-        res.status(400).json({
-            jsonrpc: '2.0',
-            error: { code: -32000, message: 'Bad Request: Initialize flow must start with a POST request' },
-            id: null,
-        });
-    }
-};
+const handleMcp = createMcpHandler({
+    sessions,
+    createServer: createMcpServer,
+    eventStore,
+    landingHtml: LANDING_HTML,
+    onSessionStarted: (req) => claimAgentClient(req.auth),
+});
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
