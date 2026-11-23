@@ -21,13 +21,17 @@ import { fakeRedis } from './fake_redis';
 // the session of a GET exists, not whose event its Last-Event-ID names.
 
 type LogLine = Record<string, unknown> & { message: string };
+const asLine = (first: unknown, second?: string): LogLine =>
+    typeof first === 'string' ? { message: first } : { ...(first as object), message: second ?? '' };
 const logLines: LogLine[] = [];
-(logger as any).info = (first: unknown, second?: string) => {
-    logLines.push(typeof first === 'string' ? { message: first } : { ...(first as object), message: second ?? '' });
-};
+(logger as any).info = (first: unknown, second?: string) => { logLines.push(asLine(first, second)); };
 const logged = (text: string) => logLines.filter((line) => line.message.endsWith(text));
+/** The warn lines: the errors the SDK reported for a session. */
+const warnLines: LogLine[] = [];
+(logger as any).warn = (first: unknown, second?: string) => { warnLines.push(asLine(first, second)); };
+const sessionErrors = (sessionId: string) => warnLines.filter((line) => line.message === `MCP Session error: ${sessionId}`);
 
-const { redis, streams } = fakeRedis();
+const { redis, streams, failures } = fakeRedis();
 const sessions: McpSessions = new SessionRegistry({ idleMs: 60 * 60 * 1000 });
 /** The server of each session, in the order the sessions started. */
 const servers: McpServer[] = [];
@@ -265,4 +269,73 @@ test('a resume is logged with whether the session was found; a GET without Last-
         { found: false, message: `MCP Session resume requested: ${'x'.repeat(64)}` },
         { method: 'GET', initialize: false, clientId: undefined, message: `MCP Session not found: ${'x'.repeat(64)}` },
     ]);
+});
+
+// The cases above (results, replays, a resume while the call runs, the real SDK client's resume) run first.
+test('the cases above report no session error', () => {
+    assert.deepEqual(warnLines, []);
+});
+
+test('a result ready after the server saw the break is lost, and the log names the session, the client and the request', async () => {
+    const a = await initialize();
+    const startedBefore = slowStarted;
+    const busyBefore = sessions.stats().busy;
+    const broken = await call(a.sessionId, 'slow', {}, { dropAfterFirstChunk: true });
+    const [primingEventId] = eventIds(broken.text);
+    await waitFor('the call to start', () => slowStarted > startedBefore);
+    await waitFor('the server to see the break', () => sessions.stats().busy <= busyBefore);
+    finishSlow();
+    await waitFor('the error line', () => sessionErrors(a.sessionId).length > 0);
+
+    assert.deepEqual(sessionErrors(a.sessionId), [{
+        clientId: 'client-1',
+        err: 'Failed to send response: Error: No connection established for request ID: 2',
+        message: `MCP Session error: ${a.sessionId}`,
+    }]);
+    // The SDK neither sent nor stored the result, so a resume now gets nothing. If an SDK upgrade makes this fail, the
+    // result is kept now: the README says it is lost.
+    const resumed = await request({ method: 'GET', sessionId: a.sessionId, lastEventId: primingEventId });
+    assert.equal(resumed.status, 200);
+    assert.doesNotMatch(resumed.text, /RESULT-OF-THE-SLOW-CALL/);
+});
+
+test('the event store cannot write: the call gets 400 before the tool runs, and the log has the cause', async () => {
+    const a = await initialize();
+    failures.write = new Error('Connection is closed.');
+    try {
+        const answer = await call(a.sessionId, 'echo', { text: 'never' });
+        assert.equal(answer.status, 400);
+        assert.match(answer.text, /Parse error/);
+    } finally {
+        failures.write = undefined;
+    }
+    assert.deepEqual(sessionErrors(a.sessionId), [
+        { clientId: 'client-1', err: 'Connection is closed.', message: `MCP Session error: ${a.sessionId}` },
+    ]);
+});
+
+test('the event store cannot read: the resume gets 500, and the log has the cause', async () => {
+    const a = await initialize();
+    const result = await call(a.sessionId, 'echo', { text: 'x' });
+    const [firstEventId] = eventIds(result.text);
+    failures.read = new Error('Connection is closed.');
+    try {
+        const resumed = await request({ method: 'GET', sessionId: a.sessionId, lastEventId: firstEventId });
+        assert.equal(resumed.status, 500);
+        assert.match(resumed.text, /Error replaying events/);
+    } finally {
+        failures.read = undefined;
+    }
+    assert.deepEqual(sessionErrors(a.sessionId).map((line) => line.err), ['Connection is closed.']);
+});
+
+test('a long error text is cut to its first 500 characters', async () => {
+    const a = await initialize();
+    failures.write = new Error('x'.repeat(2000));
+    try {
+        await call(a.sessionId, 'echo', { text: 'never' });
+    } finally {
+        failures.write = undefined;
+    }
+    assert.deepEqual(sessionErrors(a.sessionId).map((line) => line.err), ['x'.repeat(500)]);
 });
