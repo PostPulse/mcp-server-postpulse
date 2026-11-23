@@ -12,6 +12,13 @@ export type McpSessions = SessionRegistry<StreamableHTTPServerTransport>;
 
 /** A session ID is a UUID of 36 characters. GET and DELETE carry no token, so anyone can send any text in its place. */
 const MAX_LOGGED_SESSION_ID = 64;
+/** An error the SDK reports can quote the client's message (a validation error): keep only the start of its text. */
+const MAX_LOGGED_ERROR = 500;
+
+/** The text of an error the SDK reported: its message only, no stack, cut to a fixed length. */
+function sdkErrorText(error: unknown): string {
+    return (error instanceof Error ? error.message : String(error)).slice(0, MAX_LOGGED_ERROR);
+}
 
 export interface McpHandlerOptions {
     sessions: McpSessions;
@@ -89,6 +96,12 @@ export function createMcpHandler(options: McpHandlerOptions) {
             // Made here rather than by the transport, so that the event store of the session can be bound to it.
             const newSessionId = randomUUID();
             const server = createServer();
+            // The SDK reports some failures to no caller, only here: a response it could not deliver because the
+            // stream of its call had closed (the result is lost), a failed write or read of the event store, a message
+            // it could not parse. The transport's errors arrive here too.
+            server.server.onerror = (error) => {
+                logger.warn({ clientId, err: sdkErrorText(error) }, `MCP Session error: ${newSessionId}`);
+            };
             const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
                 sessionIdGenerator: () => newSessionId,
                 eventStore: createEventStore?.(newSessionId),
