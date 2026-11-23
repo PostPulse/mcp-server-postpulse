@@ -101,7 +101,7 @@ docker run -p 3000:3000 mcp-server-postpulse
 | `POSTPULSE_AUTH_EU_ISSUERS` | — | Comma-separated issuers trusted for EU keys |
 | `POSTPULSE_AUDIENCE` | `https://api.post-pulse.com` | API audience |
 | `POSTPULSE_API_URL` | `https://api.post-pulse.com` | PostPulse API base URL |
-| `REDIS_URL` | — | Redis connection URL for session/event persistence (required) |
+| `REDIS_URL` | — | Redis connection URL (required). Holds the messages each session sent, for 2 hours, so that a client whose connection drops can resume the stream (see [Sessions](#sessions)). Sessions themselves live in memory |
 | `SESSION_IDLE_TIMEOUT_MINUTES` | `1440` | An MCP session with no request started or ended for this long is closed (see [Sessions](#sessions)) |
 
 ## Tools
@@ -419,6 +419,8 @@ Sessions live in the memory of the server process. A client ends its session wit
 - with no open request, the session is closed;
 - with an open `GET` stream, the server ends the stream first. A client that is still there opens it again and keeps the session; otherwise the session is closed after one more idle period;
 - after twice the idle period the session is closed even with a request still open.
+
+A client whose response stream breaks during a tool call can resume it with a `GET` that carries the `Mcp-Session-Id` and `Last-Event-ID` headers (a client on protocol `2025-11-25` gets an event ID at the start of each response stream): the stream goes on after that event, and the result of the call arrives on it. If the call ends before the client is back, its result is lost: the server keeps a message only while a stream of its call is open (MCP SDK 1.26). The messages are kept in Redis for 2 hours, and only the session that sent them can replay them. The resume works only while the session is alive.
 
 A restart of the server ends all sessions as well. A request to a session that is gone gets `404`: a `POST` or `DELETE` gets the JSON-RPC error `Session not found` (`-32001`), a `GET` gets the plain text `Session not found`. The client then starts a new session with `initialize`, as the MCP specification requires; an `initialize` request that still carries the old `Mcp-Session-Id` gets a new session, not `404`.
 
