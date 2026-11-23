@@ -17,8 +17,8 @@ import { logger } from '../src/logger';
 import { fakeRedis } from './fake_redis';
 
 // The wiring of src/index.ts: the real handler, the real SDK server transport and a RedisEventStore per session, on
-// Redis streams kept in memory. With one store for all sessions (the code before plan 022) the first two cases fail:
-// the SDK checks that the session of a GET exists, not whose event its Last-Event-ID names.
+// Redis streams kept in memory. With one store shared by all sessions the first two cases fail: the SDK checks that
+// the session of a GET exists, not whose event its Last-Event-ID names.
 
 type LogLine = Record<string, unknown> & { message: string };
 const logLines: LogLine[] = [];
