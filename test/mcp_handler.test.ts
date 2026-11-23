@@ -70,7 +70,7 @@ app.use((req, res, next) => {
 app.all('/', createMcpHandler({
     sessions,
     createServer,
-    eventStore: new InMemoryEventStore(),
+    createEventStore: () => new InMemoryEventStore(),
     landingHtml: '<html></html>',
     onSessionStarted: () => { started += 1; },
 }));

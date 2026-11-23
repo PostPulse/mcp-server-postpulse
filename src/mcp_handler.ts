@@ -17,7 +17,11 @@ export interface McpHandlerOptions {
     sessions: McpSessions;
     /** A new McpServer with every tool: each session gets its own. */
     createServer: () => McpServer;
-    eventStore?: EventStore;
+    /**
+     * The event store of a new session, for the resume of a broken response stream. Each session needs its own: the SDK
+     * does not check whose event a `Last-Event-ID` names, so with a shared store one session could replay another's.
+     */
+    createEventStore?: (sessionId: string) => EventStore;
     /** The page for a browser (or crawler) that opens the server URL. */
     landingHtml: string;
     /** Called after the initialize request of a new session has been answered. */
@@ -32,7 +36,7 @@ export interface McpHandlerOptions {
  * - DELETE with a session ID -> the client ends its session.
  */
 export function createMcpHandler(options: McpHandlerOptions) {
-    const { sessions, createServer, eventStore, landingHtml, onSessionStarted } = options;
+    const { sessions, createServer, createEventStore, landingHtml, onSessionStarted } = options;
 
     return async (req: express.Request, res: express.Response) => {
         // 1. Discover Session ID
@@ -46,6 +50,14 @@ export function createMcpHandler(options: McpHandlerOptions) {
         // 2. Handle Existing Session
         if (sessionId) {
             const transport = sessions.get(sessionId);
+            // A GET with Last-Event-ID asks to resume a broken stream (the SDK ignores an empty one). Logged to see
+            // whether any client resumes at all: that is all the event store is for.
+            if (req.method === 'GET' && req.headers['last-event-id']) {
+                logger.info(
+                    { found: transport !== undefined },
+                    `MCP Session resume requested: ${sessionId.slice(0, MAX_LOGGED_SESSION_ID)}`,
+                );
+            }
             if (transport) {
                 sessions.track(sessionId, res, req.method === 'GET');
                 await transport.handleRequest(req, res, req.body);
@@ -74,10 +86,12 @@ export function createMcpHandler(options: McpHandlerOptions) {
 
         // 3. Handle Initialization (POST only)
         if (isInitialize) {
+            // Made here rather than by the transport, so that the event store of the session can be bound to it.
+            const newSessionId = randomUUID();
             const server = createServer();
             const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
-                sessionIdGenerator: () => randomUUID(),
-                eventStore,
+                sessionIdGenerator: () => newSessionId,
+                eventStore: createEventStore?.(newSessionId),
                 onsessioninitialized: (sid) => {
                     sessions.add(sid, transport, server);
                     logger.info({ clientId }, `✨ MCP Session started: ${sid}`);

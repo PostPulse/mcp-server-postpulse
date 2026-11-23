@@ -15,7 +15,7 @@ import { config } from './config';
 import { logger } from './logger';
 import { tokenVerifier } from './auth/token_verifier';
 import { claimAgentClient } from './agent_client';
-import { RedisEventStore } from './store/redis_event_store';
+import { redisEventStores } from './store/redis_event_store';
 import { SessionRegistry } from './session_registry';
 import { createMcpHandler, startSessionSweeper, type McpSessions } from './mcp_handler';
 import { SERVER_VERSION } from './version';
@@ -402,8 +402,8 @@ Steps:
 
 // ─── Redis & EventStore ─────────────────────────────────────────────────────
 
+// The events of each session, for the resume of a broken response stream. The sessions themselves live in memory.
 const redis = new Redis(config.REDIS_URL, { family: config.REDIS_IP_FAMILY });
-const eventStore = new RedisEventStore(redis);
 
 // ─── Session Registry ────────────────────────────────────────────────────────
 
@@ -518,7 +518,7 @@ app.get('/.well-known/mcp/server-card.json', (_req, res) => {
 const handleMcp = createMcpHandler({
     sessions,
     createServer: createMcpServer,
-    eventStore,
+    createEventStore: redisEventStores(redis),
     landingHtml: LANDING_HTML,
     onSessionStarted: (req) => claimAgentClient(req.auth),
 });
