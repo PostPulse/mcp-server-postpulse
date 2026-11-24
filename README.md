@@ -1,6 +1,6 @@
 # PostPulse MCP Server
 
-[![smithery badge](https://smithery.ai/badge/post-pulse/mcp-server)](https://smithery.ai/servers/post-pulse/mcp-server)
+[![smithery badge](https://smithery.ai/badge/post-pulse/mcp-server)](https://smithery.ai/servers/post-pulse/mcp-server) [![PostPulse/mcp-server-postpulse MCP server](https://glama.ai/mcp/servers/PostPulse/mcp-server-postpulse/badges/score.svg)](https://glama.ai/mcp/servers/PostPulse/mcp-server-postpulse)
 
 An MCP (Model Context Protocol) server that connects AI assistants to [PostPulse](https://post-pulse.com) — a social media management platform. Schedule posts, upload media, and manage accounts across Instagram, Facebook, YouTube, TikTok, Threads, LinkedIn, Pinterest, X (Twitter), Bluesky, Telegram and WhatsApp — all through natural language.
 
